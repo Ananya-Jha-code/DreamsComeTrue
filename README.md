@@ -29,7 +29,7 @@ Web app scaffold for the PRD pipeline: spoken story -> narrated illustrated film
 
 - Express (`backend`) is the public app API: receives uploads, tracks jobs, calls internal ML service, handles orchestration and eventual FFmpeg + Supabase.
 - FastAPI (`ml-service`) is internal-only ML gateway:
-  - `/v1/transcribe` (Whisper large-v3 on Modal/Replicate)
+  - `/v1/transcribe` (ElevenLabs speech-to-text)
   - `/v1/cleanup`, `/v1/plan`, `/v1/rewrite` (K2 Think -> Gemini fallback)
   - `/v1/images` (Imagen 3 -> FLUX fallback)
   - `/v1/audio/narration`, `/v1/audio/ambient` (Gemini multimodal audio)
@@ -48,10 +48,10 @@ cd HackPrinceton
 npm install
 ```
 
-Install Python deps for FastAPI:
+Install Python deps for FastAPI with Python 3.12:
 
 ```bash
-python -m pip install -r ml-service/requirements.txt
+py -3.12 -m pip install -r ml-service/requirements.txt
 ```
 
 Run frontend + express:
@@ -60,17 +60,22 @@ Run frontend + express:
 npm run dev
 ```
 
-Run full local stack (frontend + express + fastapi):
+Run the full local stack with one command:
 
 ```bash
 npm run dev:full
 ```
 
+`dev:full` starts the frontend, backend, and ML service together. It uses Python 3.12 for the ML service so the FastAPI dependencies install and run correctly on Windows.
+
 ## Environment
 
 - Copy `backend/.env.example` -> `backend/.env`
 - Copy `ml-service/.env.example` -> `ml-service/.env`
+- Put your ElevenLabs API key in `ml-service/.env` as `ELEVENLABS_API_KEY=...`
 - Never commit real keys.
+
+For the current transcription flow, `ELEVENLABS_API_KEY` is the only required ML service secret. The other env values can stay blank until those providers are wired in.
 
 ## Build
 

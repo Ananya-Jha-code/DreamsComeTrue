@@ -1,12 +1,18 @@
 from __future__ import annotations
 
+import base64
 import os
+from pathlib import Path
 from typing import Literal
 
+import httpx
 from fastapi import FastAPI, Header, HTTPException
+from dotenv import load_dotenv
 from pydantic import BaseModel, Field
 
 app = FastAPI(title="Lullaby ML Service", version="0.1.0")
+
+load_dotenv(dotenv_path=Path(__file__).with_name(".env"))
 
 
 def _check_token(x_ml_token: str | None) -> None:
@@ -69,27 +75,75 @@ def health() -> dict[str, str]:
     return {"ok": "true", "service": "lullaby-ml-fastapi"}
 
 
+def _transcribe_with_elevenlabs(audio_bytes: bytes, mime_type: str) -> dict:
+    api_key = os.getenv("ELEVENLABS_API_KEY", "").strip()
+    if not api_key:
+        raise HTTPException(
+            status_code=500,
+            detail="ELEVENLABS_API_KEY is missing in ml-service environment",
+        )
+
+    model_id = os.getenv("ELEVENLABS_STT_MODEL", "scribe_v2")
+    url = os.getenv("ELEVENLABS_STT_URL", "https://api.elevenlabs.io/v1/speech-to-text")
+
+    headers = {"xi-api-key": api_key}
+    files = {
+        "file": ("recording.webm", audio_bytes, mime_type),
+    }
+    data = {
+        "model_id": model_id,
+    }
+
+    try:
+        response = httpx.post(url, headers=headers, files=files, data=data, timeout=60.0)
+    except httpx.RequestError as exc:
+        raise HTTPException(status_code=502, detail=f"ElevenLabs request failed: {exc}") from exc
+
+    if response.status_code >= 400:
+        raise HTTPException(
+            status_code=502,
+            detail=f"ElevenLabs STT failed ({response.status_code}): {response.text}",
+        )
+
+    return response.json()
+
+
 @app.post("/v1/transcribe")
 def transcribe(req: TranscribeRequest, x_ml_token: str | None = Header(default=None)) -> dict:
     _check_token(x_ml_token)
-    provider: Literal["replicate-whisper-large-v3", "modal-whisper-large-v3"] = (
-        "modal-whisper-large-v3"
-        if os.getenv("WHISPER_PROVIDER", "replicate").lower() == "modal"
-        else "replicate-whisper-large-v3"
-    )
-    text = (
-        "Stub transcript. Wire Whisper large-v3 on Modal or Replicate here."
-        if req.audioBase64
-        else "No audio payload provided to ML service."
-    )
+    if not req.audioBase64:
+        raise HTTPException(status_code=400, detail="No audio payload provided to ML service")
+
+    try:
+        audio_bytes = base64.b64decode(req.audioBase64)
+    except Exception as exc:  # noqa: BLE001
+        raise HTTPException(status_code=400, detail="Invalid base64 audio payload") from exc
+
+    payload = _transcribe_with_elevenlabs(audio_bytes, req.mimeType)
+    provider: Literal["elevenlabs-scribe-v2"] = "elevenlabs-scribe-v2"
+
+    text = str(payload.get("text", "")).strip()
+    words_raw = payload.get("words", [])
+    words: list[dict[str, float | str]] = []
+    if isinstance(words_raw, list):
+        for w in words_raw:
+            if not isinstance(w, dict):
+                continue
+            token = w.get("text") or w.get("word")
+            start = w.get("start", 0)
+            end = w.get("end", 0)
+            if isinstance(token, str) and token:
+                words.append(
+                    {
+                        "word": token,
+                        "start": float(start) if isinstance(start, (int, float)) else 0.0,
+                        "end": float(end) if isinstance(end, (int, float)) else 0.0,
+                    }
+                )
+
     return {
         "text": text,
-        "words": [
-            {"word": "Once", "start": 0.0, "end": 0.25},
-            {"word": "upon", "start": 0.26, "end": 0.45},
-            {"word": "a", "start": 0.46, "end": 0.52},
-            {"word": "night", "start": 0.53, "end": 0.82},
-        ],
+        "words": words,
         "provider": provider,
     }
 
