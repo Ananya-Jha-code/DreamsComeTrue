@@ -73,7 +73,7 @@ npm run dev:full
 Run the full stack with Docker (no local Node/Python dependency install required):
 
 ```bash
-docker compose up --build
+docker compose up --build -d
 ```
 
 Before running, set `ELEVENLABS_API_KEY` in your shell so `docker-compose.yml` can pass it to `ml-service`.
@@ -82,7 +82,7 @@ PowerShell:
 
 ```powershell
 $env:ELEVENLABS_API_KEY="your_key_here"
-docker compose up --build
+docker compose up --build -d
 ```
 
 Services:
