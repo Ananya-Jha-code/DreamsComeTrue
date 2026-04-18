@@ -9,3 +9,6 @@ coverage
 *.mp4
 uploads
 .cache
+__pycache__
+*.pyc
+.venv

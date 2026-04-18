@@ -7,6 +7,7 @@
   ],
   "scripts": {
     "dev": "concurrently -n web,api -c cyan,magenta \"npm run dev -w frontend\" \"npm run dev -w backend\"",
+    "dev:full": "concurrently -n web,api,ml -c cyan,magenta,yellow \"npm run dev -w frontend\" \"npm run dev -w backend\" \"python -m uvicorn main:app --reload --port 8000 --app-dir ml-service\"",
     "build": "npm run build -w frontend && npm run build -w backend"
   },
   "devDependencies": {

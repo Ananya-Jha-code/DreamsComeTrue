@@ -1,7 +1,7 @@
 import { Router } from "express";
 import multer from "multer";
 import { z } from "zod";
-import { runPipelineStub } from "../pipeline/runPipeline.js";
+import { runPipeline } from "../pipeline/runPipeline.js";
 import {
   createJob,
   getJob,
@@ -15,6 +15,10 @@ const upload = multer({
 });
 
 export const jobsRouter = Router();
+
+const createBodySchema = z.object({
+  filters: storyFiltersSchema.partial().optional(),
+});
 
 /** POST /api/jobs — multipart: audio file field `audio`, JSON filters optional */
 jobsRouter.post("/", upload.single("audio"), (req, res) => {
@@ -43,7 +47,7 @@ jobsRouter.post("/", upload.single("audio"), (req, res) => {
   }
 
   const job = createJob(filters);
-  void runPipelineStub(job).catch((err) => {
+  void runPipeline(job, req.file.buffer).catch((err) => {
     console.error("Pipeline error", job.id, err);
     updateJob(job.id, {
       stage: "failed",
@@ -87,7 +91,7 @@ jobsRouter.post("/:id/refilter", (req, res) => {
     res.status(500).json({ error: "Update failed" });
     return;
   }
-  void runPipelineStub(next).catch((err) => {
+  void runPipeline(next).catch((err) => {
     console.error("Refilter pipeline error", next.id, err);
     updateJob(next.id, {
       stage: "failed",

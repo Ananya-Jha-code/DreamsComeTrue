@@ -1,48 +1,76 @@
 # Lullaby
 
-Web app scaffold: spoken story → narrated illustrated film (see `prd.md`).
+Web app scaffold for the PRD pipeline: spoken story -> narrated illustrated film.
 
-## Structure
+## Required Stack (Strict)
 
-| Path | Stack |
-|------|--------|
-| `frontend/` | React 19, Vite 6, TypeScript, Tailwind CSS |
-| `backend/` | Node.js, Express, TypeScript, Zod |
+| Layer | Technology |
+|---|---|
+| Frontend | React + Vite + Tailwind CSS |
+| Backend | Node.js + Express + FastAPI (ML calls) |
+| Transcription | Whisper large-v3 on Modal or Replicate |
+| Cleanup / Planning / Rewrite | K2 Think primary, Gemini 2.5 Pro fallback |
+| Image generation | Imagen 3 primary, FLUX.1 schnell (fal.ai) fallback |
+| Narration audio | Gemini 2.5 native multimodal TTS |
+| Ambient audio | Gemini 2.5 multimodal audio |
+| Assembly | FFmpeg |
+| Storage | Supabase (session cache + temporary MP4 hosting) |
+| Deployment | Vercel (frontend), Modal or Fly.io (backend services) |
 
-**API (stub pipeline)**
+## Repository Structure
 
-- `GET /api/health` — liveness
-- `POST /api/jobs` — multipart form: field `audio` (file), optional `filters` (JSON string of partial filter object)
-- `GET /api/jobs/:id` — job status and stub results
-- `POST /api/jobs/:id/refilter` — JSON `{ "filters": { ...partial } }`
+| Path | Purpose |
+|---|---|
+| `frontend/` | React + Vite + Tailwind UI |
+| `backend/` | Express public API, job orchestration |
+| `ml-service/` | FastAPI internal ML gateway (Whisper/K2/Gemini/Imagen/FLUX adapters) |
 
-In-memory job store resets on server restart. Replace `backend/src/pipeline/runPipeline.ts` with Whisper → LLM → images → Gemini audio → FFmpeg.
+## Service Boundaries
 
-## Setup
+- Express (`backend`) is the public app API: receives uploads, tracks jobs, calls internal ML service, handles orchestration and eventual FFmpeg + Supabase.
+- FastAPI (`ml-service`) is internal-only ML gateway:
+  - `/v1/transcribe` (Whisper large-v3 on Modal/Replicate)
+  - `/v1/cleanup`, `/v1/plan`, `/v1/rewrite` (K2 Think -> Gemini fallback)
+  - `/v1/images` (Imagen 3 -> FLUX fallback)
+  - `/v1/audio/narration`, `/v1/audio/ambient` (Gemini multimodal audio)
+
+## APIs (Express)
+
+- `GET /api/health`
+- `POST /api/jobs` (multipart: `audio`, optional `filters` JSON string)
+- `GET /api/jobs/:id`
+- `POST /api/jobs/:id/refilter`
+
+## Local Setup
 
 ```bash
 cd HackPrinceton
 npm install
 ```
 
-From the repo root:
+Install Python deps for FastAPI:
+
+```bash
+python -m pip install -r ml-service/requirements.txt
+```
+
+Run frontend + express:
 
 ```bash
 npm run dev
 ```
 
-Runs the Vite dev server (frontend) and the API (backend) together. Open **http://localhost:5173** — the UI proxies `/api` to **http://localhost:3001**.
-
-### Run workspaces separately
+Run full local stack (frontend + express + fastapi):
 
 ```bash
-npm run dev -w frontend
-npm run dev -w backend
+npm run dev:full
 ```
 
-### Environment
+## Environment
 
-Copy `backend/.env.example` to `backend/.env` and adjust if needed. `FRONTEND_ORIGIN` must match the Vite URL for CORS.
+- Copy `backend/.env.example` -> `backend/.env`
+- Copy `ml-service/.env.example` -> `ml-service/.env`
+- Never commit real keys.
 
 ## Build
 
@@ -52,8 +80,6 @@ npm run build
 
 Outputs `frontend/dist` and `backend/dist`.
 
-## Next steps
+## Important Note
 
-1. Implement real transcription (Whisper) in the pipeline.
-2. Persist jobs / uploads (e.g. Supabase) instead of `jobsStore`.
-3. Add picker UI for the five filter axes and pass them through `createJob`.
+Current ML/Ffmpeg/Supabase logic is scaffold-level and intentionally stubbed in places, but the architecture and provider/fallback boundaries now match the strict stack above.
