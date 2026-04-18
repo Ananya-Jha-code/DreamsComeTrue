@@ -206,6 +206,16 @@ export default function App() {
           <p>Stage: {job.stage}</p>
           {job.error && <p className="text-red-300">Error: {job.error}</p>}
           {job.result?.transcript && <p>Transcript: {job.result.transcript}</p>}
+          {job.result?.language && <p>Language: {job.result.language}</p>}
+          {job.result?.cleanTranscript && <p>Clean: {job.result.cleanTranscript}</p>}
+          {job.result?.directorPrompt && (
+            <p className="whitespace-pre-wrap">Director prompt: {job.result.directorPrompt}</p>
+          )}
+          {job.result?.rawModelJson && (
+            <pre className="mt-2 max-h-64 overflow-auto rounded border border-white/10 bg-black/20 p-2 text-xs text-white/80">
+              {JSON.stringify(job.result.rawModelJson, null, 2)}
+            </pre>
+          )}
         </section>
       )}
     </main>

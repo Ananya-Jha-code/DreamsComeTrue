@@ -12,7 +12,7 @@ import type { JobRecord } from "../types/job.js";
 
 /**
  * Strict stack pipeline orchestration:
- * - Whisper large-v3 (Modal/Replicate) for transcription
+ * - ElevenLabs STT for transcription (record branch) — language tag from response
  * - K2 Think primary + Gemini 2.5 Pro fallback for cleanup/planning/rewrite
  * - Imagen 3 primary + FLUX.1 schnell fallback for images
  * - Gemini 2.5 native multimodal audio for narration + ambient
@@ -27,22 +27,29 @@ export async function runPipeline(job: JobRecord, audioBuffer?: Buffer): Promise
     audioBase64: rawAudioBase64,
     mimeType: "audio/webm",
   });
+  const languageTag = transcript.language ?? null;
 
   setStage(id, "cleaning");
   const cleanTranscript = await cleanupTranscript({
     transcript: transcript.text,
+    language: languageTag,
+    filters: job.filters,
   });
 
   setStage(id, "planning");
   const scenePlan = await planScenes({
     transcript: cleanTranscript.text,
     filters: job.filters,
+    language: cleanTranscript.language ?? languageTag,
+    directorPrompt: cleanTranscript.directorPrompt,
   });
 
   setStage(id, "rewriting");
   const rewritten = await rewriteStory({
     transcript: cleanTranscript.text,
     filters: job.filters,
+    language: cleanTranscript.language ?? languageTag,
+    directorPrompt: cleanTranscript.directorPrompt,
   });
 
   setStage(id, "generating_images");
@@ -70,6 +77,9 @@ export async function runPipeline(job: JobRecord, audioBuffer?: Buffer): Promise
     result: {
       transcript: transcript.text,
       cleanTranscript: cleanTranscript.text,
+      language: cleanTranscript.language,
+      directorPrompt: cleanTranscript.directorPrompt,
+      rawModelJson: cleanTranscript.rawModelJson,
       videoUrl: undefined,
     },
   });

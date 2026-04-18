@@ -23,6 +23,12 @@ export interface JobRecord {
   result?: {
     transcript?: string;
     cleanTranscript?: string;
+    /** BCP-47 / ISO from STT + cleanup */
+    language?: string;
+    /** K2-produced brief for downstream scene plan + rewrite */
+    directorPrompt?: string;
+    /** K2 parse payload (JSON object) for debugging / downstream */
+    rawModelJson?: Record<string, unknown>;
     videoUrl?: string;
   };
 }

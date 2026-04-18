@@ -28,6 +28,9 @@ export interface JobRecord {
   result?: {
     transcript?: string;
     cleanTranscript?: string;
+    language?: string;
+    directorPrompt?: string;
+    rawModelJson?: Record<string, unknown>;
     videoUrl?: string;
   };
 }

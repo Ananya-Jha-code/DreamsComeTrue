@@ -3,12 +3,14 @@ from __future__ import annotations
 import base64
 import os
 from pathlib import Path
-from typing import Literal
+from typing import Any, Literal
 
 import httpx
 from fastapi import FastAPI, Header, HTTPException
 from dotenv import load_dotenv
 from pydantic import BaseModel, Field
+
+from k2_cleanup import run_k2_cleanup
 
 app = FastAPI(title="Lullaby ML Service", version="0.1.0")
 
@@ -36,16 +38,32 @@ class TranscribeRequest(BaseModel):
 
 class CleanupRequest(BaseModel):
     transcript: str
+    language: str | None = None
+    filters: Filters
+
+
+class CleanupResponse(BaseModel):
+    """OpenAPI + stable JSON body for /v1/cleanup (K2 field names)."""
+
+    clean_transcript: str
+    language: str
+    director_prompt: str
+    raw_model_json: dict[str, Any]
+    provider: str
 
 
 class PlanRequest(BaseModel):
     transcript: str
     filters: Filters
+    language: str | None = None
+    director_prompt: str | None = None
 
 
 class RewriteRequest(BaseModel):
     transcript: str
     filters: Filters
+    language: str | None = None
+    director_prompt: str | None = None
 
 
 class Scene(BaseModel):
@@ -108,6 +126,26 @@ def _transcribe_with_elevenlabs(audio_bytes: bytes, mime_type: str) -> dict:
     return response.json()
 
 
+def _language_from_elevenlabs(payload: dict) -> str | None:
+    """Best-effort language tag from ElevenLabs STT JSON (no extra API call)."""
+    for key in ("language_code", "language", "detected_language"):
+        val = payload.get(key)
+        if isinstance(val, str) and val.strip():
+            return val.strip()
+    meta = payload.get("metadata")
+    if isinstance(meta, dict):
+        for key in ("language_code", "language"):
+            val = meta.get(key)
+            if isinstance(val, str) and val.strip():
+                return val.strip()
+    analysis = payload.get("analysis")
+    if isinstance(analysis, dict):
+        val = analysis.get("language_code") or analysis.get("language")
+        if isinstance(val, str) and val.strip():
+            return val.strip()
+    return None
+
+
 @app.post("/v1/transcribe")
 def transcribe(req: TranscribeRequest, x_ml_token: str | None = Header(default=None)) -> dict:
     _check_token(x_ml_token)
@@ -141,25 +179,41 @@ def transcribe(req: TranscribeRequest, x_ml_token: str | None = Header(default=N
                     }
                 )
 
+    language = _language_from_elevenlabs(payload)
+
     return {
         "text": text,
         "words": words,
+        "language": language,
         "provider": provider,
     }
 
 
-@app.post("/v1/cleanup")
-def cleanup(req: CleanupRequest, x_ml_token: str | None = Header(default=None)) -> dict:
+@app.post("/v1/cleanup", response_model=CleanupResponse)
+def cleanup(req: CleanupRequest, x_ml_token: str | None = Header(default=None)) -> CleanupResponse:
     _check_token(x_ml_token)
-    return {
-        "text": req.transcript.replace(" um ", " ").replace(" uh ", " ").strip(),
-        "provider": "k2-think-primary-gemini-2.5-pro-fallback",
-    }
+    try:
+        out = run_k2_cleanup(
+            raw_transcript=req.transcript,
+            language_tag=req.language,
+            filters=req.filters.model_dump(),
+        )
+    except RuntimeError as exc:
+        raise HTTPException(status_code=502, detail=str(exc)) from exc
+
+    return CleanupResponse(
+        clean_transcript=out["clean_transcript"],
+        language=out["language"],
+        director_prompt=out["director_prompt"],
+        raw_model_json=out["raw_model_json"],
+        provider="k2think-k2-cleanup",
+    )
 
 
 @app.post("/v1/plan")
 def plan(req: PlanRequest, x_ml_token: str | None = Header(default=None)) -> dict:
     _check_token(x_ml_token)
+    _ = (req.language, req.director_prompt)  # wired for next: K2 scene JSON
     return {
         "provider": "k2-think-primary-gemini-2.5-pro-fallback",
         "scenes": [
@@ -182,6 +236,7 @@ def plan(req: PlanRequest, x_ml_token: str | None = Header(default=None)) -> dic
 @app.post("/v1/rewrite")
 def rewrite(req: RewriteRequest, x_ml_token: str | None = Header(default=None)) -> dict:
     _check_token(x_ml_token)
+    # req.language / req.director_prompt reserved for K2 rewrite call.
     return {
         "provider": "k2-think-primary-gemini-2.5-pro-fallback",
         "script": (
