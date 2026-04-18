@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { createJob, fetchHealth, getJob } from "./api/jobs";
 import type { JobRecord, StoryFilters } from "./types/job";
 
@@ -14,6 +14,14 @@ export default function App() {
   const [apiOk, setApiOk] = useState<boolean | null>(null);
   const [job, setJob] = useState<JobRecord | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [isRecording, setIsRecording] = useState(false);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [recordingBlob, setRecordingBlob] = useState<Blob | null>(null);
+  const [recordingUrl, setRecordingUrl] = useState<string | null>(null);
+
+  const mediaRecorderRef = useRef<MediaRecorder | null>(null);
+  const mediaStreamRef = useRef<MediaStream | null>(null);
+  const chunksRef = useRef<BlobPart[]>([]);
 
   useEffect(() => {
     fetchHealth()
@@ -31,78 +39,175 @@ export default function App() {
     }
   }, []);
 
-  const onUpload = async (file: File) => {
+  const clearRecording = useCallback(() => {
+    setRecordingBlob(null);
+    if (recordingUrl) {
+      URL.revokeObjectURL(recordingUrl);
+    }
+    setRecordingUrl(null);
+  }, [recordingUrl]);
+
+  const stopStreamTracks = useCallback(() => {
+    if (mediaStreamRef.current) {
+      for (const track of mediaStreamRef.current.getTracks()) {
+        track.stop();
+      }
+      mediaStreamRef.current = null;
+    }
+  }, []);
+
+  const startRecording = useCallback(async () => {
+    setError(null);
+    if (typeof window === "undefined" || !("MediaRecorder" in window)) {
+      setError("This browser does not support audio recording.");
+      return;
+    }
+
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      mediaStreamRef.current = stream;
+
+      const preferredTypes = ["audio/webm;codecs=opus", "audio/webm", "audio/mp4"];
+      const selectedType = preferredTypes.find((type) => MediaRecorder.isTypeSupported(type));
+      const recorder = selectedType
+        ? new MediaRecorder(stream, { mimeType: selectedType })
+        : new MediaRecorder(stream);
+
+      chunksRef.current = [];
+      recorder.ondataavailable = (event) => {
+        if (event.data.size > 0) chunksRef.current.push(event.data);
+      };
+      recorder.onstop = () => {
+        stopStreamTracks();
+        const blob = new Blob(chunksRef.current, { type: recorder.mimeType || "audio/webm" });
+        chunksRef.current = [];
+        clearRecording();
+        setRecordingBlob(blob);
+        setRecordingUrl(URL.createObjectURL(blob));
+      };
+
+      mediaRecorderRef.current = recorder;
+      recorder.start();
+      setIsRecording(true);
+    } catch (e) {
+      stopStreamTracks();
+      setError(e instanceof Error ? e.message : "Microphone permission failed.");
+    }
+  }, [clearRecording, stopStreamTracks]);
+
+  const stopRecording = useCallback(() => {
+    if (!mediaRecorderRef.current || mediaRecorderRef.current.state !== "recording") {
+      setIsRecording(false);
+      stopStreamTracks();
+      return;
+    }
+    mediaRecorderRef.current.stop();
+    mediaRecorderRef.current = null;
+    setIsRecording(false);
+  }, [stopStreamTracks]);
+
+  const submitRecording = useCallback(async (audio: Blob) => {
     setError(null);
     setJob(null);
+    setIsSubmitting(true);
     try {
-      const { jobId } = await createJob(file, defaultFilters);
+      const { jobId } = await createJob(audio, defaultFilters);
       await pollJob(jobId);
     } catch (e) {
-      setError(e instanceof Error ? e.message : "Upload failed");
+      setError(e instanceof Error ? e.message : "Submit failed");
+    } finally {
+      setIsSubmitting(false);
     }
-  };
+  }, [pollJob]);
+
+  useEffect(() => {
+    return () => {
+      stopRecording();
+      stopStreamTracks();
+      if (recordingUrl) {
+        URL.revokeObjectURL(recordingUrl);
+      }
+    };
+  }, [recordingUrl, stopRecording, stopStreamTracks]);
 
   return (
-    <div className="min-h-screen flex flex-col items-center px-6 py-16">
-      <div className="text-6xl mb-8 select-none" aria-hidden>
-        🌙
-      </div>
-      <h1 className="text-3xl md:text-4xl text-center text-amber-soft/95 tracking-tight mb-3">
-        Tell a story. Watch it become a film.
-      </h1>
-      <p className="text-center text-amber-glow/70 text-sm max-w-md mb-12">
-        Lullaby — HackPrinceton scaffold. Backend runs a stub pipeline; plug in Whisper,
-        images, and Gemini next.
+    <main className="mx-auto min-h-screen max-w-2xl px-6 py-12">
+      <h1 className="mb-6 text-2xl font-semibold">Record</h1>
+
+      <p className="mb-4 text-sm">
+        API status: {apiOk === null ? "checking" : apiOk ? "connected" : "unreachable"}
       </p>
 
-      <div className="flex flex-wrap gap-3 justify-center mb-10">
-        <span
-          className={`rounded-full px-4 py-1.5 text-xs font-sans border ${
-            apiOk === null
-              ? "border-night-700 text-amber-glow/50"
-              : apiOk
-                ? "border-emerald-700/80 text-emerald-300/90"
-                : "border-red-900/80 text-red-300/90"
-          }`}
-        >
-          API {apiOk === null ? "…" : apiOk ? "connected" : "unreachable"}
-        </span>
-      </div>
+      <section className="mb-8 space-y-3 rounded border border-white/20 p-4">
+        <p className="text-sm">Capture audio and submit it to create a job.</p>
+        <div className="flex flex-wrap gap-2">
+          <button
+            type="button"
+            onClick={() => void startRecording()}
+            disabled={isRecording || isSubmitting}
+            className="rounded border border-white/30 px-3 py-1.5 text-sm disabled:opacity-50"
+          >
+            Start recording
+          </button>
+          <button
+            type="button"
+            onClick={stopRecording}
+            disabled={!isRecording || isSubmitting}
+            className="rounded border border-white/30 px-3 py-1.5 text-sm disabled:opacity-50"
+          >
+            Stop recording
+          </button>
+          <button
+            type="button"
+            onClick={() => {
+              if (recordingBlob) {
+                void submitRecording(recordingBlob);
+              }
+            }}
+            disabled={!recordingBlob || isRecording || isSubmitting}
+            className="rounded border border-white/30 px-3 py-1.5 text-sm disabled:opacity-50"
+          >
+            {isSubmitting ? "Submitting..." : "Submit recording"}
+          </button>
+          <button
+            type="button"
+            onClick={clearRecording}
+            disabled={isRecording || isSubmitting || !recordingBlob}
+            className="rounded border border-white/30 px-3 py-1.5 text-sm disabled:opacity-50"
+          >
+            Clear
+          </button>
+        </div>
+        <p className="text-xs">
+          State: {isRecording ? "recording" : recordingBlob ? "recorded" : "idle"}
+        </p>
+        {recordingUrl && <audio controls src={recordingUrl} className="w-full" />}
+      </section>
 
-      <label className="cursor-pointer rounded-full bg-amber-glow/15 hover:bg-amber-glow/25 border border-amber-glow/40 text-amber-soft px-8 py-3 text-sm font-sans tracking-wide transition-colors">
-        Upload test audio
+      <section className="mb-8 space-y-2 rounded border border-white/20 p-4">
+        <p className="text-sm">Fallback: upload a local audio file.</p>
         <input
           type="file"
           accept="audio/*"
-          className="hidden"
+          disabled={isRecording || isSubmitting}
           onChange={(e) => {
-            const f = e.target.files?.[0];
-            if (f) void onUpload(f);
+            const file = e.target.files?.[0];
+            if (file) void submitRecording(file);
             e.target.value = "";
           }}
         />
-      </label>
-      <p className="mt-3 text-xs text-amber-glow/45 font-sans">
-        Sends <code className="text-amber-glow/70">POST /api/jobs</code> with field{" "}
-        <code className="text-amber-glow/70">audio</code>
-      </p>
+      </section>
 
-      {error && (
-        <p className="mt-6 text-red-300/90 text-sm font-sans max-w-md text-center">{error}</p>
-      )}
+      {error && <p className="mb-6 text-sm text-red-300">{error}</p>}
 
       {job && (
-        <div className="mt-10 w-full max-w-lg rounded-2xl border border-night-700 bg-night-800/80 p-6 font-sans text-sm">
-          <p className="text-amber-glow/60 text-xs uppercase tracking-wider mb-2">Job</p>
-          <p className="text-amber-soft/90 break-all mb-4">{job.id}</p>
-          <p className="text-amber-glow/60 text-xs uppercase tracking-wider mb-1">Stage</p>
-          <p className="text-xl text-amber-soft mb-4">{job.stage}</p>
-          {job.error && <p className="text-red-300/90 text-xs">{job.error}</p>}
-          {job.result?.transcript && (
-            <p className="text-amber-glow/80 text-xs mt-4 leading-relaxed">{job.result.transcript}</p>
-          )}
-        </div>
+        <section className="space-y-2 rounded border border-white/20 p-4 text-sm">
+          <p>Job ID: {job.id}</p>
+          <p>Stage: {job.stage}</p>
+          {job.error && <p className="text-red-300">Error: {job.error}</p>}
+          {job.result?.transcript && <p>Transcript: {job.result.transcript}</p>}
+        </section>
       )}
-    </div>
+    </main>
   );
 }
