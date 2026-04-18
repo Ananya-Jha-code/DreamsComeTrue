@@ -1,0 +1,43 @@
+services:
+  frontend:
+    build:
+      context: ./frontend
+    ports:
+      - "5173:5173"
+    environment:
+      - VITE_API_PROXY_TARGET=http://backend:3001
+    volumes:
+      - ./frontend:/app
+      - /app/node_modules
+    depends_on:
+      - backend
+
+  backend:
+    build:
+      context: ./backend
+    ports:
+      - "3001:3001"
+    environment:
+      - PORT=3001
+      - NODE_ENV=development
+      - FRONTEND_ORIGIN=http://localhost:5173
+      - ML_SERVICE_URL=http://ml-service:8000
+      - ML_SERVICE_TOKEN=dev-token
+    volumes:
+      - ./backend:/app
+      - /app/node_modules
+    depends_on:
+      - ml-service
+
+  ml-service:
+    build:
+      context: ./ml-service
+    ports:
+      - "8000:8000"
+    environment:
+      - ML_SERVICE_TOKEN=dev-token
+      - ELEVENLABS_API_KEY=${ELEVENLABS_API_KEY}
+      - ELEVENLABS_STT_MODEL=scribe_v2
+      - ELEVENLABS_STT_URL=https://api.elevenlabs.io/v1/speech-to-text
+    volumes:
+      - ./ml-service:/app
