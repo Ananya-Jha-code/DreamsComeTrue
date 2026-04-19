@@ -1,236 +1,246 @@
-# DreamsComeTrue 
+# DreamsComeTrue
 
-**HackPrinceton 2026 submission** — *Weave your dreams.*
+> **Speak a story. Watch it become a picture book.**
 
-Web app scaffold for the PRD pipeline: spoken story → narrated illustrated picture book.
-
-Turn spoken stories into a **narrated illustrated picture book**: upload or record audio, choose visual style / reading level / tone, **K2 Think V2** reasoning and get page-by-page text plus **Gemini** illustrations driven by your transcript.
-
-![System architecture](docs/architecture.png)
-
----
-
-## What this project does
-
-1. **Frontend (Vite + React)** — Routes: `/` (landing), `/picker` (file upload), `/record` (microphone). The dev server proxies `/api/*` to the Express API on port **3001**.
-2. **Backend (Express, TypeScript)** — Accepts multipart uploads (`audio` + optional `filters`), creates a **job**, returns **202 Accepted** immediately, and runs an async pipeline. The client polls `GET /api/jobs/:id` for status and results.
-3. **ML service (FastAPI, Python)** — Internal-only gateway (not called from the browser). It transcribes audio (**ElevenLabs** STT), cleans and structures the story (**K2 Think** via OpenAI-compatible chat completions), and generates images (**Together** — FLUX.1-schnell by default).
-
-Job stages are: `queued` → `transcribing` → `cleaning` → `generating_pages` → `ready` (or `failed`). Job state is stored **in memory** (`Map`) for the demo; restarting the backend clears jobs.
+[![HackPrinceton Spring 2026](https://img.shields.io/badge/HackPrinceton-Spring%202026-gold?style=flat-square)](https://hackprinceton.com)
+[![Built in 36 Hours](https://img.shields.io/badge/Built%20in-36%20Hours-blueviolet?style=flat-square)](https://github.com/Ananya-Jha-code/DreamsComeTrue)
+[![K2 Think v2](https://img.shields.io/badge/Powered%20by-K2%20Think%20v2-orange?style=flat-square)](https://k2think.ai)
+[![Gemini 2.5 Flash](https://img.shields.io/badge/Images-Gemini%202.5%20Flash-blue?style=flat-square)](https://deepmind.google/gemini)
+[![ElevenLabs](https://img.shields.io/badge/Voice-ElevenLabs%20Scribe%20v2-yellow?style=flat-square)](https://elevenlabs.io)
 
 ---
 
-## Required Stack (Strict)
+You speak. Ninety seconds later, **a fully illustrated picture book exists** — every paragraph its own painted page, styled to your taste.
+
+DreamsComeTrue is a real-time AI pipeline that turns a single voice recording into a multi-page illustrated storybook. Choose your art style before you speak. Watch pages appear as they're painted. No typing. No prompting. Just tell the story the way you'd tell it to a child.
+
+---
+
+## The Pipeline
+
+```
+  🎙  Voice Recording
+       Browser MediaRecorder → WebM audio
+          │
+          ▼
+  📝  ElevenLabs Scribe v2
+       Speech-to-text with word-level timing
+       Raw transcript + detected language
+          │
+          ▼
+  🧠  K2 Think v2  ←  THE AUTHOR
+       Strips filler words & transcription noise
+       Structures story into 3–6 picture-book paragraphs
+       Invents a book title
+       Bakes in your chosen style, tone & reading level
+          │
+          ▼
+  🎨  Gemini 2.5 Flash  (one illustration per paragraph)
+       Director-prompted per page
+       Character continuity enforced across all spreads
+       Aspect-locked 3:4 picture-book format
+          │
+          ▼
+  📖  Your Picture Book
+       Pages stream in as they finish painting
+       Download any page. Share the whole book.
+```
+
+End-to-end in **under 90 seconds**.
+
+---
+
+## K2 Think v2 — The Author in the Machine
+
+The most unusual architectural choice here is what sits at the center of the pipeline: **K2 Think v2**, a model from MBZUAI-IFM that was designed for deep reasoning and structured multi-step problem solving.
+
+We didn't use it for reasoning. We used it as a **writer**.
+
+Most projects reach for GPT-4o or Claude for creative tasks. We gave K2 the hardest job in the system — and it delivered. In a single API call, K2:
+
+**1. Edits the raw transcript.**
+Speech-to-text output is messy. K2 strips "um", "like", false starts, and transcription artifacts while preserving the speaker's voice, rhythm, and intent. It doesn't rewrite — it *uncovers* the story that was already there.
+
+**2. Structures a picture book.**
+It decides where page breaks go. It segments the narrative into 3–6 self-contained paragraphs, each rich enough to paint but not so long it overwhelms a spread. Vocabulary is adapted to the chosen reading level.
+
+**3. Titles the book.**
+One child-friendly, evocative title. Every time.
+
+**4. Internalizes the filter matrix.**
+Style, tone, and reading level aren't labels passed downstream — K2 integrates them into *how it writes*. A "mysterious" grade-school story reads structurally different from a "cozy" toddler one. The model shapes the prose accordingly before a single image prompt is built.
+
+All of this returns as strict JSON:
+
+```json
+{
+  "clean_transcript": "Once there was a fox who lived...",
+  "language": "en",
+  "book_title": "The Fox Who Counted Stars",
+  "picture_book_paragraphs": [
+    "Once there was a small red fox who lived at the edge of a silver forest...",
+    "Every night she climbed the tallest pine tree and counted the stars...",
+    "One evening she counted one extra star — and it blinked back."
+  ]
+}
+```
+
+K2 runs at `temperature: 0.3` with JSON mode enforced — consistent enough for a pipeline, creative enough for a story.
+
+> K2 Think v2 is typically deployed for structured reasoning and agentic tasks. DreamsComeTrue repurposes it as a creative writing orchestrator — leveraging its instruction-following precision not to answer questions, but to *author*.
+
+---
+
+## 120 Ways to Dream the Same Story
+
+Before you record, you pick three things:
+
+| Axis | Options | Choices |
+|------|---------|---------|
+| **Visual Style** | 6 | Watercolor Storybook · Studio Ghibli · Pixar / 3D · Paper Cutout · Charcoal Sketch · Crayon Drawing |
+| **Reading Level** | 4 | Toddler (2–3) · Early Reader (4–6) · Grade School (7–10) · Advanced (11+) |
+| **Tone** | 5 | Cozy · Adventurous · Whimsical · Mysterious · Tender |
+
+**6 × 4 × 5 = 120 distinct picture books from one spoken story.**
+
+These aren't cosmetic filters. They flow into K2 (which adjusts prose structure and vocabulary) and into Gemini (which shifts the illustrated aesthetic). The same bedtime story becomes a brooding charcoal mystery at grade-school level, or a warm crayon adventure for toddlers — genuinely different books.
+
+---
+
+## Director Prompts — How We Talk to Gemini
+
+Gemini 2.5 Flash is a powerful model, but getting it to paint *continuous characters* across *multiple pages* required treating each generation like a film production brief:
+
+```
+[DIRECTOR PROMPT — Page 2 of 4]
+
+BOOK: "The Fox Who Counted Stars"
+SCENE: Every night she climbed the tallest pine tree and counted the stars.
+
+CONTINUITY: Opening — a small red fox at the edge of a silver forest.
+[Full transcript excerpt for visual reference across all pages]
+
+STYLE: Studio Ghibli hand-painted. Early reader. Tone: whimsical.
+
+COMPOSITION: Full-page picture-book spread. Cinematic depth.
+Maintain character appearance from page 1. Children's illustration.
+
+STRICT: Zero readable text. No letters, words, watermarks, or symbols.
+```
+
+Every page gets the full story context. The result: illustrations that feel like they belong to the same book.
+
+---
+
+## Architecture
+
+```
+┌──────────────────┐                    ┌────────────────────────────┐
+│  React Frontend  │  ←── polling ────► │  Express Backend           │
+│  Vite · Three.js │                    │  TypeScript · Zod          │
+│  Tailwind CSS    │  ──POST /jobs ───► │  Async job pipeline        │
+└──────────────────┘                    └──────────────┬─────────────┘
+                                                       │ x-ml-token
+                                                       ▼
+                                        ┌────────────────────────────┐
+                                        │  FastAPI ML Service        │
+                                        │  Python · httpx            │
+                                        │                            │
+                                        │  /v1/transcribe            │
+                                        │    → ElevenLabs Scribe v2  │
+                                        │                            │
+                                        │  /v1/cleanup               │
+                                        │    → K2 Think v2           │
+                                        │                            │
+                                        │  /v1/illustration          │
+                                        │    → Gemini 2.5 Flash      │
+                                        └────────────────────────────┘
+```
+
+**Why a separate ML service?**
+Provider API keys never reach the frontend. The Express server and FastAPI service authenticate via a shared internal token. Swapping any AI provider requires a single config change — nothing in the frontend changes.
+
+**Why async + polling?**
+The backend returns a `202` immediately and runs the pipeline in the background. The frontend polls every 1.2 seconds. Pages update in the job record as each one finishes — so the UI can show illustrations arriving progressively instead of waiting for the full book.
+
+---
+
+## Stack
 
 | Layer | Technology |
-|---|---|
-| Frontend | React + Vite + Tailwind CSS |
-| Backend | Node.js + Express + FastAPI (ML calls) |
-| Transcription | Eleven Labs |
-| Cleanup / Planning / Rewrite | K2 Think primary, Gemini 2.5 Pro fallback |
-| Image generation | Gemini for page illustrations |
-| Narration audio | Gemini 2.5 native multimodal TTS |
-| Ambient audio | Gemini 2.5 multimodal audio |
-| Assembly | Page-by-page image composition |
-| Storage | Supabase (session cache + temporary image hosting) |
-| Deployment | Digital Ocean |
+|-------|-----------|
+| Frontend | React 19 · Vite 6 · Tailwind CSS · Three.js |
+| Backend | Express.js · TypeScript · Zod |
+| ML Service | FastAPI · Python · httpx |
+| Transcription | ElevenLabs Scribe v2 |
+| Story Authoring | **K2 Think v2** (MBZUAI-IFM) |
+| Illustration | **Gemini 2.5 Flash** (Google DeepMind) |
 
 ---
 
-## Architecture and performance
+## Running Locally
 
-- **Asynchronous jobs** — `POST /api/jobs` responds with **202** and a `jobId` while heavy work runs in the background, so the UI stays responsive.
-- **Progressive results** — As each illustrated page completes, the backend updates the job record so polling can show pages as they arrive (not only at the very end).
-- **Isolated ML API** — The browser talks only to Express. The FastAPI service requires a shared **`x-ml-token`** header; provider keys stay on the server.
-- **Direct provider adapters** — STT, LLM cleanup, and image generation are implemented as straightforward HTTP calls from the ML service to ElevenLabs, K2 Think, and Together (see diagram above).
+### Prerequisites
+- Node.js 20+, Python 3.11+
+- API keys: ElevenLabs, Google AI (Gemini), K2 Think
 
----
-
-## Repository Structure
-
-| Path | Purpose |
-|---|---|
-| `frontend/` | React + Vite + Tailwind UI |
-| `backend/` | Express public API, job orchestration |
-| `ml-service/` | FastAPI internal ML gateway (ElevenLabs STT / K2 / FLUX adapters) |
-| `docs/` | Architecture diagram and other assets |
-
----
-
-## Service Boundaries
-
-- Express (`backend`) is the public app API: receives uploads, tracks jobs, calls internal ML service, and handles orchestration and eventual FFmpeg + Supabase.
-- FastAPI (`ml-service`) is internal-only ML gateway:
-  - `/v1/transcribe` (ElevenLabs speech-to-text)
-  - `/v1/cleanup` (K2 Think paragraph planning)
-  - `/v1/illustration` (FLUX page art via Together)
-
----
-
-## APIs (Express)
-
-- `GET /api/health`
-- `POST /api/jobs` (multipart: `audio`, optional `filters` JSON string) — returns **202** `{ jobId, stage }`
-- `GET /api/jobs/:id`
-- `POST /api/jobs/:id/refilter`
-
-### API summary (tables)
-
-| Method | Path | Description |
-|--------|------|-------------|
-| `GET` | `/api/health` | Liveness: `{ ok, service }` |
-| `POST` | `/api/jobs` | Multipart: field **`audio`** (required), optional **`filters`** (JSON string). Returns **202** `{ jobId, stage }`. |
-| `GET` | `/api/jobs/:id` | Full job record or **404** |
-| `POST` | `/api/jobs/:id/refilter` | JSON `{ filters: { ...partial } }` — merges filters and re-queues the pipeline (**202**). |
-
-**ML service (internal, called by Express only)**
-
-| Method | Path | Purpose |
-|--------|------|---------|
-| `GET` | `/health` | ML service liveness |
-| `POST` | `/v1/transcribe` | `audioBase64` + `mimeType` → ElevenLabs STT |
-| `POST` | `/v1/cleanup` | Transcript + `filters` → K2 cleanup / paragraph planning |
-| `POST` | `/v1/illustration` | `prompt` + `aspect_ratio` → Gemini |
-
-All `/v1/*` routes expect header **`x-ml-token`** matching `ML_SERVICE_TOKEN`.
-
----
-
-## Environment
-
-- Copy `backend/.env.example` → `backend/.env`
-- Copy `ml-service/.env.example` → `ml-service/.env`
-- Put your ElevenLabs API key in `ml-service/.env` as `ELEVENLABS_API_KEY=...`
-- Never commit real keys.
-
-For the current transcription flow, `ELEVENLABS_API_KEY` is the primary ML service secret for STT. `K2THINK_API_KEY` (or `K2_API_KEY`) enables paragraph planning and `TOGETHER_API_KEY` enables FLUX illustration generation.
-
-### `backend/.env` (from `backend/.env.example`)
-
-| Variable | Purpose |
-|----------|---------|
-| `PORT` | API port (default **3001**) |
-| `FRONTEND_ORIGIN` | CORS origin (default `http://localhost:5173`) |
-| `ML_SERVICE_URL` | FastAPI base URL (default `http://localhost:8000`) |
-| `ML_SERVICE_TOKEN` | Must match `ml-service` `ML_SERVICE_TOKEN` |
-
-### `ml-service/.env` (from `ml-service/.env.example`)
-
-| Variable | Required for | Notes |
-|----------|----------------|-------|
-| `ML_SERVICE_TOKEN` | Securing `/v1/*` | Same value as backend `ML_SERVICE_TOKEN` |
-| `ELEVENLABS_API_KEY` | Speech-to-text | `xi-api-key` for ElevenLabs STT |
-| `ELEVENLABS_STT_MODEL` | STT | e.g. `scribe_v2` |
-| `ELEVENLABS_STT_URL` | STT | Default ElevenLabs speech-to-text URL |
-| `K2THINK_API_KEY` (or `K2_API_KEY`) | Story cleanup / planning | OpenAI-compatible Bearer token |
-| `K2_BASE_URL` | K2 client | Default `https://api.k2think.ai/v1` |
-| `K2_CLEANUP_MODEL` | Cleanup | e.g. `MBZUAI-IFM/K2-Think-v2` |
-| `Gemini` | Images | Gemini |
-
----
-
-## Local Setup
-
+### ML Service
 ```bash
-cd HackPrinceton
-npm install
+cd ml-service
+cp .env.example .env   # fill in API keys + ML_SERVICE_TOKEN
+pip install -r requirements.txt
+uvicorn main:app --port 8000 --reload
 ```
 
-Install Python deps for FastAPI with Python 3.12:
-
+### Backend
 ```bash
-py -3.12 -m pip install -r ml-service/requirements.txt
+cd backend
+cp .env.example .env   # ML_SERVICE_URL + ML_SERVICE_TOKEN (same token)
+npm install && npm run dev   # :3001
 ```
 
-Run frontend + express:
-
+### Frontend
 ```bash
-npm run dev
+cd frontend
+npm install && npm run dev   # :5173
 ```
 
-Run the full local stack with one command:
-
-```bash
-npm run dev:full
-```
-
-`dev:full` starts the frontend, backend, and ML service together. It uses Python 3.12 for the ML service so the FastAPI dependencies install and run correctly on Windows.
-
-**Prerequisites for a working demo:** Node.js (npm workspaces), **Python 3.12**, and the API keys in `ml-service/.env` (plus matching `ML_SERVICE_TOKEN` in `backend/.env`).
-
-Copy env files (PowerShell):
-
-```powershell
-copy backend\.env.example backend\.env
-copy ml-service\.env.example ml-service\.env
-```
-
-Or on macOS/Linux:
-
-```bash
-cp backend/.env.example backend/.env
-cp ml-service/.env.example ml-service/.env
-```
-
-Edit `backend/.env` and `ml-service/.env` with your keys and tokens.
-
-**Note:** `npm run dev` runs frontend + Express only; the ML service must be running separately (e.g. another terminal) unless you use `npm run dev:full`.
-
-Services when running locally:
-
-- Frontend: `http://localhost:5173`
-- Backend health: `http://localhost:3001/api/health`
-- ML service health: `http://localhost:8000/health`
+Open `http://localhost:5173`. Pick a style. Tell a story.
 
 ---
 
-## Docker Setup
+## Environment Variables
 
-Run the full stack with Docker (no local Node/Python dependency install required):
-
-```bash
-docker compose up --build -d
+**`ml-service/.env`**
+```env
+ELEVENLABS_API_KEY=
+GOOGLE_AI_API_KEY=
+K2THINK_API_KEY=
+ML_SERVICE_TOKEN=
+K2_TEMPERATURE=0.3
 ```
 
-Before running, set `ELEVENLABS_API_KEY` in your shell so `docker-compose.yml` can pass it to `ml-service`.
-
-PowerShell:
-
-```powershell
-$env:ELEVENLABS_API_KEY="your_key_here"
-docker compose up --build -d
-```
-
-Services:
-
-- Frontend: `http://localhost:5173`
-- Backend health: `http://localhost:3001/api/health`
-- ML service health: `http://localhost:8000/health`
-
-Stop containers:
-
-```bash
-docker compose down
+**`backend/.env`**
+```env
+ML_SERVICE_URL=http://localhost:8000
+ML_SERVICE_TOKEN=
+PORT=3001
 ```
 
 ---
 
-## Build
+## What Makes This Different
 
-```bash
-npm run build
-```
+Most AI storytelling tools ask you to type. DreamsComeTrue asks you to **speak** — because that's how stories actually get told to children.
 
-Outputs `frontend/dist` and `backend/dist`.
+Most pipelines treat the LLM as a formatter. We treat K2 Think v2 as a **co-author** — giving it the speaker's exact words and trusting its reasoning capabilities to find the story inside the noise.
 
----
+Most image generation pipelines produce disconnected illustrations. Ours uses director prompts carrying **full narrative continuity** — the same fox, the same forest, the same silver light — across every page.
 
-## Important Note
-
-Current ML / FFmpeg / Supabase logic is scaffold-level and intentionally stubbed in places, but the architecture and provider boundaries for the **picture-book workflow** (STT → K2 cleanup → FLUX pages) match the pipeline described above. Items in **Required Stack** such as Gemini TTS, ambient audio, Supabase storage, and deployment targets are part of the PRD implemented in this repository yet.
+The result isn't a demo. It's a book.
 
 ---
 
-## Credits
+*Built in 36 hours at HackPrinceton Spring 2026 · Entertainment & Media Track*
 
-Submitted to **HackPrinceton 2026**. Project codename **Lullaby**; product name **DreamsComeTrue**.
+*"A story doesn't have one correct form. Every dream deserves its own shape."*
