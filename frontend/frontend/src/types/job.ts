@@ -2,11 +2,6 @@ export type JobStage =
   | "queued"
   | "transcribing"
   | "cleaning"
-  | "planning"
-  | "rewriting"
-  | "generating_images"
-  | "generating_audio"
-  | "assembling"
   | "ready"
   | "failed";
 
@@ -28,6 +23,8 @@ export interface JobRecord {
   result?: {
     transcript?: string;
     cleanTranscript?: string;
-    videoUrl?: string;
+    language?: string;
+    directorPrompt?: string;
+    rawModelJson?: Record<string, unknown>;
   };
 }

@@ -208,7 +208,7 @@ export default function RecordPage() {
     throw new Error("The pipeline is still running. Please wait and try again.");
   };
 
-  const handleGenerateFilm = async () => {
+  const handleGeneratePrompt = async () => {
     if (!audioBlob) {
       setSubmitError("Please record your story first.");
       return;
@@ -224,7 +224,7 @@ export default function RecordPage() {
 
       await pollJobUntilFinished(created.jobId);
     } catch (err) {
-      setSubmitError(err instanceof Error ? err.message : "Unable to generate film.");
+      setSubmitError(err instanceof Error ? err.message : "Unable to generate prompt.");
     } finally {
       setGenerating(false);
     }
@@ -266,7 +266,7 @@ export default function RecordPage() {
           {done ? <><em style={{fontStyle:"italic",color:"#c9a84c"}}>Beautiful.</em> Ready to weave.</> : recording ? <>Listening<em style={{fontStyle:"italic",color:"#c9a84c"}}>…</em></> : <>Tell your <em style={{fontStyle:"italic",color:"#c9a84c"}}>story</em></>}
         </h1>
         <p style={{fontSize:".85rem",color:"rgba(232,223,208,.38)",maxWidth:400,lineHeight:1.6,marginBottom:"3rem"}}>
-          {done ? "Your story has been captured. Generate your film below." : recording ? "Speak naturally. Pause whenever you like. Tap again when you're done." : "Tap the button below and speak. We'll handle the rest."}
+          {done ? "Your story has been captured. Generate the director prompt below." : recording ? "Speak naturally. Pause whenever you like. Tap again when you're done." : "Tap the button below and speak. We'll handle the rest."}
         </p>
 
         {micError && (
@@ -304,9 +304,9 @@ export default function RecordPage() {
             <button type="button" onClick={resetRecording} style={{background:"none",border:"1px solid rgba(232,223,208,.12)",color:"rgba(232,223,208,.45)",borderRadius:"100px",padding:".85rem 2rem",fontFamily:"'Instrument Sans',sans-serif",fontSize:".8rem",letterSpacing:".12em",textTransform:"uppercase",cursor:"pointer",transition:"all .3s"}}>
               Record again
             </button>
-            <button type="button" className="rc-btn" onClick={handleGenerateFilm} disabled={generating} style={{opacity: generating ? 0.7 : 1, cursor: generating ? "wait" : "pointer"}}>
+            <button type="button" className="rc-btn" onClick={handleGeneratePrompt} disabled={generating} style={{opacity: generating ? 0.7 : 1, cursor: generating ? "wait" : "pointer"}}>
               <span className="rc-dot" />
-              {generating ? "Generating..." : "Generate Film"}
+              {generating ? "Generating..." : "Generate Prompt"}
             </button>
           </div>
         )}
@@ -323,14 +323,8 @@ export default function RecordPage() {
             )}
             {jobResult?.directorPrompt && (
               <div>
-                <p style={{margin:"0 0 .35rem",fontSize:".7rem",letterSpacing:".1em",textTransform:"uppercase",color:"rgba(232,223,208,.5)"}}>Generated movie prompt</p>
+                <p style={{margin:"0 0 .35rem",fontSize:".7rem",letterSpacing:".1em",textTransform:"uppercase",color:"rgba(232,223,208,.5)"}}>Director prompt</p>
                 <p style={{margin:0,fontSize:".85rem",lineHeight:1.6,color:"rgba(232,223,208,.92)"}}>{jobResult.directorPrompt}</p>
-              </div>
-            )}
-            {jobResult?.videoUrl && (
-              <div style={{marginTop:"1rem"}}>
-                <p style={{margin:"0 0 .35rem",fontSize:".7rem",letterSpacing:".1em",textTransform:"uppercase",color:"rgba(232,223,208,.5)"}}>Generated movie</p>
-                <video controls src={jobResult.videoUrl} style={{width:"100%",borderRadius:10,border:"1px solid rgba(201,168,76,.2)",background:"#000"}} />
               </div>
             )}
           </div>

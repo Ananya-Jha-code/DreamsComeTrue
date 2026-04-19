@@ -4,12 +4,6 @@ export type JobStage =
   | "queued"
   | "transcribing"
   | "cleaning"
-  | "planning"
-  | "rewriting"
-  | "generating_images"
-  | "generating_audio"
-  | "generating_video"
-  | "assembling"
   | "ready"
   | "failed";
 
@@ -26,10 +20,9 @@ export interface JobRecord {
     cleanTranscript?: string;
     /** BCP-47 / ISO from STT + cleanup */
     language?: string;
-    /** K2-produced brief for downstream scene plan + rewrite */
+    /** K2-produced director prompt */
     directorPrompt?: string;
-    /** K2 parse payload (JSON object) for debugging / downstream */
+    /** K2 parse payload (JSON object) for debugging */
     rawModelJson?: Record<string, unknown>;
-    videoUrl?: string;
   };
 }

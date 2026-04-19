@@ -105,7 +105,7 @@ export default function RecordPage() {
           {done ? <><em style={{fontStyle:"italic",color:"#c9a84c"}}>Beautiful.</em> Ready to weave.</> : recording ? <>Listening<em style={{fontStyle:"italic",color:"#c9a84c"}}>…</em></> : <>Tell your <em style={{fontStyle:"italic",color:"#c9a84c"}}>story</em></>}
         </h1>
         <p style={{fontSize:".85rem",color:"rgba(232,223,208,.38)",maxWidth:400,lineHeight:1.6,marginBottom:"3rem"}}>
-          {done ? "Your story has been captured. Generate your film below." : recording ? "Speak naturally. Pause whenever you like. Tap again when you're done." : "Tap the button below and speak. We'll handle the rest."}
+          {done ? "Your story has been captured. Generate the director prompt below." : recording ? "Speak naturally. Pause whenever you like. Tap again when you're done." : "Tap the button below and speak. We'll handle the rest."}
         </p>
 
         {/* Waveform */}
@@ -138,7 +138,7 @@ export default function RecordPage() {
             </button>
             <button type="button" className="rc-btn">
               <span className="rc-dot" />
-              Generate Film
+              Generate Prompt
             </button>
           </div>
         )}

@@ -1,7 +1,6 @@
 import "dotenv/config";
 import cors from "cors";
 import express from "express";
-import path from "node:path";
 import { jobsRouter } from "./routes/jobs.js";
 
 const app = express();
@@ -15,7 +14,6 @@ app.use(
   })
 );
 app.use(express.json({ limit: "2mb" }));
-app.use("/generated", express.static(path.resolve(process.cwd(), "generated")));
 
 app.get("/api/health", (_req, res) => {
   res.json({ ok: true, service: "lullaby-api" });

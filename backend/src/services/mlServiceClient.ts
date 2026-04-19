@@ -3,13 +3,6 @@ import type { StoryFilters } from "../types/filters.js";
 const ML_SERVICE_URL = process.env.ML_SERVICE_URL ?? "http://localhost:8000";
 const ML_SERVICE_TOKEN = process.env.ML_SERVICE_TOKEN ?? "dev-token";
 
-interface SceneDescriptor {
-  id: string;
-  prompt: string;
-  seconds: number;
-  ambientTag: string;
-}
-
 async function mlPost<TReq, TRes>(path: string, body: TReq): Promise<TRes> {
   const res = await fetch(`${ML_SERVICE_URL}${path}`, {
     method: "POST",
@@ -71,53 +64,5 @@ export async function cleanupTranscript(input: {
     provider: res.provider,
     rawModelJson: res.raw_model_json,
   };
-}
-
-export async function planScenes(input: {
-  transcript: string;
-  filters: StoryFilters;
-  language?: string | null;
-  directorPrompt?: string;
-}): Promise<{ scenes: SceneDescriptor[]; provider: string }> {
-  return mlPost("/v1/plan", input);
-}
-
-export async function rewriteStory(input: {
-  transcript: string;
-  filters: StoryFilters;
-  language?: string | null;
-  directorPrompt?: string;
-}): Promise<{ script: string; provider: string }> {
-  return mlPost("/v1/rewrite", input);
-}
-
-export async function generateSceneImages(input: {
-  scenes: SceneDescriptor[];
-  filters: StoryFilters;
-}): Promise<{ imageUrls: string[]; provider: string; fallbackUsed: boolean }> {
-  return mlPost("/v1/images", input);
-}
-
-export async function generateNarrationAudio(input: {
-  script: string;
-  filters: StoryFilters;
-}): Promise<{ audioBase64: string; provider: string }> {
-  return mlPost("/v1/audio/narration", input);
-}
-
-export async function generateAmbientAudio(input: {
-  scenes: SceneDescriptor[];
-  filters: StoryFilters;
-}): Promise<{ audioBase64: string; provider: string }> {
-  return mlPost("/v1/audio/ambient", input);
-}
-
-export async function generateVideo(input: {
-  directorPrompt: string;
-  scenes: SceneDescriptor[];
-  script: string;
-  filters: StoryFilters;
-}): Promise<{ videoBase64: string; provider: string }> {
-  return mlPost("/v1/video", input);
 }
 
