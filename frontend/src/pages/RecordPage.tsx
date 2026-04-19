@@ -31,6 +31,12 @@ export default function RecordPage() {
   const audioUrlRef = useRef<string | null>(null);
   const audioPlayerRef = useRef<HTMLAudioElement>(null);
 
+  const buildVideoFilename = () => {
+    const extension = jobResult?.videoMimeType?.includes("mp4") ? "mp4" : "webm";
+    const safeJobId = jobId ?? "lullaby-video";
+    return `${safeJobId}.${extension}`;
+  };
+
   // Waveform animation
   useEffect(() => {
     const canvas = canvasRef.current;
@@ -336,6 +342,15 @@ export default function RecordPage() {
                   src={jobResult.videoDataUrl}
                   style={{width:"100%",borderRadius:12,border:"1px solid rgba(201,168,76,.2)",background:"#000"}}
                 />
+                <a
+                  href={jobResult.videoDataUrl}
+                  download={buildVideoFilename()}
+                  className="rc-btn"
+                  style={{marginTop:".85rem",textDecoration:"none"}}
+                >
+                  <span className="rc-dot" />
+                  Download video
+                </a>
                 {(jobResult.videoProvider || jobResult.videoModel) && (
                   <p style={{margin:".5rem 0 0",fontSize:".68rem",letterSpacing:".08em",textTransform:"uppercase",color:"rgba(232,223,208,.45)"}}>
                     {jobResult.videoProvider ?? "provider"}{jobResult.videoModel ? ` • ${jobResult.videoModel}` : ""}
