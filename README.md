@@ -5,7 +5,7 @@
 [![HackPrinceton Spring 2026](https://img.shields.io/badge/HackPrinceton-Spring%202026-gold?style=flat-square)](https://hackprinceton.com)
 [![Built in 36 Hours](https://img.shields.io/badge/Built%20in-36%20Hours-blueviolet?style=flat-square)](https://github.com/Ananya-Jha-code/DreamsComeTrue)
 [![K2 Think v2](https://img.shields.io/badge/Powered%20by-K2%20Think%20v2-orange?style=flat-square)](https://k2think.ai)
-[![Together FLUX](https://img.shields.io/badge/Images-Together%20FLUX-blue?style=flat-square)](https://www.together.ai)
+[![Gemini](https://img.shields.io/badge/Images-Gemini-blue?style=flat-square)](https://ai.google.dev/gemini)
 [![ElevenLabs](https://img.shields.io/badge/Voice-ElevenLabs%20Scribe%20v2-yellow?style=flat-square)](https://elevenlabs.io)
 
 DreamsComeTrue turns a spoken story into a multi-page illustrated picture book. You pick a visual style, reading level, and tone, record your story, and the app transcribes, cleans, structures, and illustrates it page by page.
@@ -15,7 +15,7 @@ DreamsComeTrue turns a spoken story into a multi-page illustrated picture book. 
 - Records a story in the browser and sends the audio to the backend.
 - Transcribes speech with ElevenLabs Scribe v2.
 - Uses K2 Think v2 to clean the transcript and shape it into picture-book pages.
-- Generates one illustration per page with Together FLUX.
+- Generates one illustration per page with Gemini.
 - Streams job progress back to the UI so pages appear as they are ready.
 
 ## Project Structure
@@ -39,7 +39,7 @@ flowchart LR
 
   ml --> stt[ElevenLabs]
   ml --> k2[K2 Think]
-  ml --> img[Together FLUX]
+  ml --> img[Gemini]
 
   api -. stores status .-> store[Job store]
   ui -. renders pages .-> book[Picture-book UI]
