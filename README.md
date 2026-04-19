@@ -1,6 +1,6 @@
 # Lullaby
 
-Web app scaffold for the PRD pipeline: spoken story -> narrated illustrated film.
+Web app scaffold for the PRD pipeline: spoken story -> narrated illustrated picture book.
 
 ## Required Stack (Strict)
 
@@ -10,29 +10,28 @@ Web app scaffold for the PRD pipeline: spoken story -> narrated illustrated film
 | Backend | Node.js + Express + FastAPI (ML calls) |
 | Transcription | Whisper large-v3 on Modal or Replicate |
 | Cleanup / Planning / Rewrite | K2 Think primary, Gemini 2.5 Pro fallback |
-| Image generation | Imagen 3 primary, FLUX.1 schnell (fal.ai) fallback |
+| Image generation | Imagen primary for page illustrations, local SVG fallback |
 | Narration audio | Gemini 2.5 native multimodal TTS |
 | Ambient audio | Gemini 2.5 multimodal audio |
-| Assembly | FFmpeg |
-| Storage | Supabase (session cache + temporary MP4 hosting) |
+| Assembly | Page-by-page image composition |
+| Storage | Supabase (session cache + temporary image hosting) |
 | Deployment | Vercel (frontend), Modal or Fly.io (backend services) |
 
 ## Repository Structure
 
 | Path | Purpose |
 |---|---|
-| `frontend/` | React + Vite + Tailwind UI |
-| `backend/` | Express public API, job orchestration |
-| `ml-service/` | FastAPI internal ML gateway (Whisper/K2/Gemini/Imagen/FLUX adapters) |
+- `frontend/` | React + Vite + Tailwind UI |
+- `backend/` | Express public API, job orchestration |
+- `ml-service/` | FastAPI internal ML gateway (Whisper/K2/Imagen adapters) |
 
 ## Service Boundaries
 
 - Express (`backend`) is the public app API: receives uploads, tracks jobs, calls internal ML service, handles orchestration and eventual FFmpeg + Supabase.
 - FastAPI (`ml-service`) is internal-only ML gateway:
   - `/v1/transcribe` (ElevenLabs speech-to-text)
-  - `/v1/cleanup`, `/v1/plan`, `/v1/rewrite` (K2 Think -> Gemini fallback)
-  - `/v1/images` (Imagen 3 -> FLUX fallback)
-  - `/v1/audio/narration`, `/v1/audio/ambient` (Gemini multimodal audio)
+  - `/v1/cleanup` (K2 Think paragraph planning)
+  - `/v1/illustration` (Imagen page art)
 
 ## APIs (Express)
 
@@ -104,7 +103,7 @@ docker compose down
 - Put your ElevenLabs API key in `ml-service/.env` as `ELEVENLABS_API_KEY=...`
 - Never commit real keys.
 
-For the current transcription flow, `ELEVENLABS_API_KEY` is the only required ML service secret. The other env values can stay blank until those providers are wired in.
+For the current transcription flow, `ELEVENLABS_API_KEY` is the only required ML service secret. `K2THINK_API_KEY` enables paragraph planning and `IMAGEN_API_KEY` enables illustration generation.
 
 ## Build
 
@@ -116,4 +115,4 @@ Outputs `frontend/dist` and `backend/dist`.
 
 ## Important Note
 
-Current ML/Ffmpeg/Supabase logic is scaffold-level and intentionally stubbed in places, but the architecture and provider/fallback boundaries now match the strict stack above.
+Current ML/Ffmpeg/Supabase logic is scaffold-level and intentionally stubbed in places, but the architecture and provider/fallback boundaries now match the picture-book workflow above.

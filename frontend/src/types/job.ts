@@ -2,9 +2,19 @@ export type JobStage =
   | "queued"
   | "transcribing"
   | "cleaning"
-  | "generating_video"
+  | "generating_pages"
   | "ready"
   | "failed";
+
+export interface PictureBookPage {
+  index: number;
+  paragraph: string;
+  imageDataUrl: string;
+  imageMimeType: string;
+  imageProvider: string;
+  imageModel: string;
+  imagePrompt: string;
+}
 
 export interface StoryFilters {
   visualStyle: string;
@@ -25,11 +35,9 @@ export interface JobRecord {
     transcript?: string;
     cleanTranscript?: string;
     language?: string;
-    directorPrompt?: string;
-    videoDataUrl?: string;
-    videoMimeType?: string;
-    videoProvider?: string;
-    videoModel?: string;
+    bookTitle?: string;
+    pictureBookParagraphs?: string[];
+    pages?: PictureBookPage[];
     rawModelJson?: Record<string, unknown>;
   };
 }

@@ -127,8 +127,8 @@ export default function LandingPage() {
           <p className="ll-eyebrow">HackPrinceton 2026</p>
           <h1 className="ll-title"><em>Lullaby</em></h1>
           <p className="ll-tagline">Tell a story.</p>
-          <p className="ll-tagline ll-tagline-gold">Watch it become a film.</p>
-          <p className="ll-sub">Speak once. Choose your version. We handle the rest.</p>
+          <p className="ll-tagline ll-tagline-gold">Watch it become a picture book.</p>
+          <p className="ll-sub">Speak once. Choose your style. We turn it into illustrated pages.</p>
           <button className="ll-btn" onClick={() => nav("/picker")}
             onMouseEnter={() => ringRef.current?.classList.add("ll-ring-big")}
             onMouseLeave={() => ringRef.current?.classList.remove("ll-ring-big")}>
@@ -146,8 +146,8 @@ export default function LandingPage() {
               {[
                 {n:"I",   title:"Set the scene",   desc:"Choose visual style, narrator voice, reading level, tone, and pacing. Sensible defaults are ready."},
                 {n:"II",  title:"Tell your story",  desc:"Speak naturally. Pause. Wander. We transcribe, clean artifacts, and find the story inside your words."},
-                {n:"III", title:"Watch it weave",   desc:"Your words transform live on screen — character sketches bloom, scenes paint themselves."},
-                {n:"IV",  title:"Premiere",         desc:"A fully narrated illustrated film. AI voice, AI visuals, ambient sound — under 90 seconds."},
+                {n:"III", title:"Watch it weave",   desc:"Your words transform into page art — sketches bloom, spreads paint themselves."},
+                {n:"IV",  title:"Storybook finish",  desc:"A fully narrated illustrated book. AI voice, AI visuals, and page-by-page pacing."},
               ].map(s => (
                 <div className="ll-step ll-reveal" key={s.n}>
                   <div className="ll-step-num">{s.n}</div>
@@ -192,8 +192,8 @@ export default function LandingPage() {
           <p className="ll-big-quote ll-reveal">"A story doesn't have <em>one correct form</em>.<br />Lullaby makes that literal."</p>
           <p className="ll-quote-attr ll-reveal">Product Philosophy</p>
           <div className="ll-stat-row ll-reveal">
-            <div className="ll-stat"><span className="ll-stat-num">2,160</span><span className="ll-stat-label">Unique film configurations<br />from one spoken story</span></div>
-            <div className="ll-stat"><span className="ll-stat-num">&lt;90s</span><span className="ll-stat-label">From spoken words<br />to finished film</span></div>
+            <div className="ll-stat"><span className="ll-stat-num">2,160</span><span className="ll-stat-label">Unique picture book combinations<br />from one spoken story</span></div>
+            <div className="ll-stat"><span className="ll-stat-num">&lt;90s</span><span className="ll-stat-label">From spoken words<br />to finished book</span></div>
             <div className="ll-stat"><span className="ll-stat-num">5</span><span className="ll-stat-label">Independent filter axes<br />you control</span></div>
           </div>
         </section>
@@ -204,7 +204,7 @@ export default function LandingPage() {
         <section className="ll-section">
           <div className="ll-container">
             <p className="ll-label ll-reveal">The Filter Matrix</p>
-            <h2 className="ll-h2 ll-reveal">Same story.<br /><em>Infinite</em> films.</h2>
+            <h2 className="ll-h2 ll-reveal">Same story.<br /><em>Infinite</em> books.</h2>
             <div className="ll-filters-grid ll-reveal">
               {[
                 {axis:"Axis I",   name:"Visual Style",  count:"6",   pills:["Watercolor Storybook","Pixar / 3D","Studio Ghibli","Paper Cutout","Charcoal Sketch","Crayon Drawing"], active:0},

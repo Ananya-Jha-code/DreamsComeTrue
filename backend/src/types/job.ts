@@ -4,9 +4,19 @@ export type JobStage =
   | "queued"
   | "transcribing"
   | "cleaning"
-  | "generating_video"
+  | "generating_pages"
   | "ready"
   | "failed";
+
+export interface PictureBookPage {
+  index: number;
+  paragraph: string;
+  imageDataUrl: string;
+  imageMimeType: string;
+  imageProvider: string;
+  imageModel: string;
+  imagePrompt: string;
+}
 
 export interface JobRecord {
   id: string;
@@ -21,15 +31,12 @@ export interface JobRecord {
     cleanTranscript?: string;
     /** BCP-47 / ISO from STT + cleanup */
     language?: string;
-    /** K2-produced director prompt */
-    directorPrompt?: string;
-    /** Data URL safe to render directly in browser video tag */
-    videoDataUrl?: string;
-    /** MIME type returned by Veo generation */
-    videoMimeType?: string;
-    /** Video provider/model metadata */
-    videoProvider?: string;
-    videoModel?: string;
+    /** Title chosen for the storybook */
+    bookTitle?: string;
+    /** Paragraphs that map to individual picture-book pages */
+    pictureBookParagraphs?: string[];
+    /** Generated picture-book pages */
+    pages?: PictureBookPage[];
     /** K2 parse payload (JSON object) for debugging */
     rawModelJson?: Record<string, unknown>;
   };

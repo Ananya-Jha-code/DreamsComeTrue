@@ -38,9 +38,10 @@ export async function cleanupTranscript(input: {
 }): Promise<{
   text: string;
   language: string;
-  directorPrompt: string;
+  bookTitle: string;
+  pictureBookParagraphs: string[];
   provider: string;
-  /** Full K2-shaped JSON (clean_transcript / language / director_prompt) + extras from parser */
+  /** Full K2-shaped JSON (clean_transcript / language / book_title / picture_book_paragraphs) + extras from parser */
   rawModelJson: Record<string, unknown>;
 }> {
   const res = await mlPost<
@@ -48,7 +49,8 @@ export async function cleanupTranscript(input: {
     {
       clean_transcript: string;
       language: string;
-      director_prompt: string;
+      book_title: string;
+      picture_book_paragraphs: string[];
       raw_model_json: Record<string, unknown>;
       provider: string;
     }
@@ -60,35 +62,36 @@ export async function cleanupTranscript(input: {
   return {
     text: res.clean_transcript,
     language: res.language,
-    directorPrompt: res.director_prompt,
+    bookTitle: res.book_title,
+    pictureBookParagraphs: res.picture_book_paragraphs,
     provider: res.provider,
     rawModelJson: res.raw_model_json,
   };
 }
 
-export async function generateVideoFromDirectorPrompt(input: {
-  directorPrompt: string;
-  targetDurationSeconds?: number;
+export async function generateIllustrationFromPrompt(input: {
+  prompt: string;
+  aspectRatio?: string;
 }): Promise<{
-  videoBase64: string;
+  imageBase64: string;
   mimeType: string;
   provider: string;
   model: string;
 }> {
   const res = await mlPost<
-    { director_prompt: string; target_duration_seconds?: number },
+    { prompt: string; aspect_ratio?: string },
     {
-      video_base64: string;
+      image_base64: string;
       mime_type: string;
       provider: string;
       model: string;
     }
-  >("/v1/video", {
-    director_prompt: input.directorPrompt,
-    target_duration_seconds: input.targetDurationSeconds,
+  >("/v1/illustration", {
+    prompt: input.prompt,
+    aspect_ratio: input.aspectRatio,
   });
   return {
-    videoBase64: res.video_base64,
+    imageBase64: res.image_base64,
     mimeType: res.mime_type,
     provider: res.provider,
     model: res.model,

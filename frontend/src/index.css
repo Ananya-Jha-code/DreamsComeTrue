@@ -3,13 +3,13 @@
 @tailwind utilities;
 
 :root {
-  color-scheme: dark;
-  font-family: Georgia, "Times New Roman", serif;
+  color-scheme: light;
+  font-family: "Instrument Sans", Georgia, "Times New Roman", serif;
 }
 
 body {
   margin: 0;
   min-height: 100vh;
-  background: linear-gradient(160deg, #0d1628 0%, #080d18 60%);
-  color: #e8dfd0;
+  background: radial-gradient(circle at top, #f7f0e4 0%, #efe3cd 45%, #dcc8a5 100%);
+  color: #2a2116;
 }

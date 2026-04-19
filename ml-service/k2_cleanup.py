@@ -1,5 +1,5 @@
 """
-Cleanup + structured director prompt via OpenAI-compatible POST /v1/chat/completions.
+Cleanup + picture-book planning via OpenAI-compatible POST /v1/chat/completions.
 
 Default provider: K2 Think v2 (https://api.k2think.ai) — same shape as the curl example.
 Alternative: Moonshot Kimi (https://api.moonshot.ai/v1) — set K2_BASE_URL + K2_CLEANUP_MODEL.
@@ -11,6 +11,7 @@ from __future__ import annotations
 
 import ast
 import json
+import math
 import os
 import re
 from typing import Any
@@ -33,63 +34,32 @@ def _resolve_language(s: str | None, language_tag: str | None) -> str:
     return "en"
 
 
-def _fallback_director_prompt(
-    *, clean_transcript: str, filters: dict[str, str], language: str
-) -> str:
-    """Use when the model returns an empty director_prompt; keeps pipeline usable."""
-    key_labels = {
-        "visualStyle": "visual style",
-        "narratorVoice": "narrator voice",
-        "readingLevel": "reading level",
-        "tone": "tone",
-        "pacing": "pacing",
-    }
-    lines: list[str] = [
-        "Lullaby — VEO director brief for downstream scene planning, rewrite, and video generation.",
-        f"Target language for narration/rewrite: {language}.",
-        "Session constraints: single browser recording, max 5 minutes; preserve story facts and emotional intent.",
-        "",
-        "Primary objective for Veo:",
-        "Create a coherent narrative film that directly depicts the transcript content, not abstract motion graphics.",
-        "",
-        "Hard visual constraints (must follow):",
-        "- Do NOT generate abstract geometric morphing, kaleidoscopes, test-pattern visuals, or random color-cycling.",
-        "- Keep one consistent world, lighting logic, and character identity across all shots.",
-        "- Ensure every shot contains concrete story action tied to transcript events.",
-        "- Avoid generic filler imagery that could apply to any story.",
-        "",
-        "Director-selected filters (apply consistently):",
-    ]
-    for k, v in filters.items():
-        label = key_labels.get(k, k)
-        lines.append(f"- {label} ({k}): {v}")
-    lines.extend(
-        [
-            "",
-            "Cinematic direction for Veo:",
-            "- Story overview: summarize the exact narrative in 2-4 sentences.",
-            "- Character continuity: specify age/appearance/clothing anchors and keep them fixed.",
-            "- Environment continuity: define primary location(s), era, weather, and texture details.",
-            "- Camera plan: use specific shot grammar (establishing, medium, close-up, tracking, insert).",
-            "- Motion plan: include meaningful character and camera motion in every shot.",
-            "- Lighting and palette: specify practical light sources and stable color design.",
-            "- Negative prompt guidance: exclude abstract artifacts and unrelated objects.",
-            "- Output should feel like one short film, not disconnected clips.",
-            "",
-            "Shot blueprint requirement:",
-            "Provide 4-8 sequential shots with concrete details for each shot:",
-            "- what happens",
-            "- who is visible",
-            "- where the camera is",
-            "- how subjects/camera move",
-            "- key visual details to preserve continuity",
-            "",
-            "Clean transcript (source of truth for the story):",
-        ]
-    )
-    cap = 4000
-    lines.append(clean_transcript[:cap] if len(clean_transcript) <= cap else clean_transcript[: cap - 3] + "...")
-    return "\n".join(lines)
+def _fallback_book_title(clean_transcript: str) -> str:
+    words = re.findall(r"[A-Za-z0-9']+", clean_transcript.strip())
+    if not words:
+        return "My Picture Book"
+    title_words = words[:5]
+    title = " ".join(title_words).strip()
+    return title[:48] if title else "My Picture Book"
+
+
+def _fallback_picture_book_paragraphs(clean_transcript: str) -> list[str]:
+    cleaned = clean_transcript.strip()
+    if not cleaned:
+        return ["The story begins in a quiet, gentle way."]
+
+    sentences = [part.strip() for part in re.split(r"(?<=[.!?])\s+", cleaned) if part.strip()]
+    if len(sentences) <= 2:
+        return [cleaned]
+
+    target_count = min(6, max(3, round(len(sentences) / 2)))
+    chunk_size = max(1, math.ceil(len(sentences) / target_count))
+    paragraphs: list[str] = []
+    for index in range(0, len(sentences), chunk_size):
+        paragraph = " ".join(sentences[index : index + chunk_size]).strip()
+        if paragraph:
+            paragraphs.append(paragraph)
+    return paragraphs or [cleaned]
 
 
 def _strip_c_style_json_comments(s: str) -> str:
@@ -177,7 +147,8 @@ def _parse_fields_piecewise(text: str) -> dict[str, str] | None:
     """
     If the object is not valid as a whole, decode each value with JSONDecoder
     (handles broken commas, partial JSON, extra prose). A valid clean_transcript
-    is required; language and director_prompt default if missing or malformed.
+    is required; language, book_title, and picture_book_paragraphs default if
+    missing or malformed.
     """
     decoder = json.JSONDecoder()
     m0 = re.search(
@@ -191,9 +162,10 @@ def _parse_fields_piecewise(text: str) -> dict[str, str] | None:
     out: dict[str, str] = {
         "clean_transcript": str(v0).strip(),
         "language": "en",
-        "director_prompt": "",
+        "book_title": "My Picture Book",
+        "picture_book_paragraphs": "[]",
     }
-    for key in ("language", "director_prompt"):
+    for key in ("language", "book_title", "picture_book_paragraphs"):
         m = re.search(
             rf'["\']?{re.escape(key)}["\']?\s*:\s*', text, re.IGNORECASE
         )
@@ -201,7 +173,7 @@ def _parse_fields_piecewise(text: str) -> dict[str, str] | None:
             continue
         v = _extract_value_with_decoder(text, m.end(), decoder)
         if v is not None:
-            s = str(v)
+            s = json.dumps(v) if key == "picture_book_paragraphs" and isinstance(v, list) else str(v)
             if key == "language" and len(s) > 64:
                 s = s[:64]
             out[key] = s
@@ -276,13 +248,14 @@ def build_cleanup_messages(
     system = """You are the Lullaby pipeline stage responsible for:
 
 1) cleaning a speech transcript
-2) generating a cinematic director brief that will be used to generate a short animated movie with a text-to-video model (Gemini).
+2) splitting the story into picture-book pages
 
 Your response MUST be exactly one JSON object with the keys:
 
 clean_transcript
 language
-director_prompt
+book_title
+picture_book_paragraphs
 
 Do NOT include markdown, explanations, or additional text.
 
@@ -311,30 +284,24 @@ The cleaned transcript must remain faithful to the original narration.
 
 --------------------------------------------------
 
-TASK 2 — CINEMATIC DIRECTOR PROMPT
+TASK 2 — PICTURE BOOK PLANNING
 
-Create a HIGH-DETAIL CINEMATIC DIRECTOR BRIEF designed specifically for a text-to-video model such as Gemini.
+Turn the cleaned transcript into a picture book plan.
 
-The goal is to transform the story into a short animated film.
+The goal is to split the story into 3-6 short paragraphs, where each paragraph will become one illustrated page.
 
-The director_prompt must read like instructions from a film director to an animation team.
+Rules for the paragraphs:
+- Keep the story faithful to the narration.
+- Preserve the order of events.
+- Each paragraph should be concise and self-contained.
+- Each paragraph should describe a scene that can be illustrated clearly.
+- Do not add dialogue or events that were not present in the original story.
+- Keep the tone and pacing aligned with the selected filters.
 
-The brief must contain rich visual detail so the video model can clearly imagine the world, characters, and camera movement.
-
-This prompt is consumed by a Veo-style video generation stage.
-Prioritize cinematic continuity, concrete actions, and shot-by-shot specificity.
-
-Never produce abstract or non-narrative visual guidance such as:
-- geometric morphing shapes
-- kaleidoscopic color fields
-- test-pattern motion
-- random color pulsing unrelated to story action
-
-Avoid vague descriptions.
-
-Use concrete visual descriptions.
-
-Do NOT describe APIs, pipelines, or processing steps.
+Book title guidance:
+- Create a short, child-friendly storybook title.
+- The title should be descriptive and warm.
+- It should not sound like a movie title.
 
 --------------------------------------------------
 
@@ -361,65 +328,20 @@ unhurried | natural | brisk
 
 --------------------------------------------------
 
-DIRECTOR PROMPT STRUCTURE
+OUTPUT FORMAT
 
-The director_prompt must include the following sections.
+Return exactly this JSON structure:
 
-Story Overview
-A short explanation of the story being told.
+{
+    "clean_transcript": "...",
+    "language": "en",
+    "book_title": "...",
+    "picture_book_paragraphs": ["...", "..."]
+}
 
-Narration Voice
-Describe the emotional tone and delivery style of the narrator.
-
-Visual Style
-Explain the art style in vivid visual terms.
-
-Character Design
-Describe the main character(s) with physical details such as age, clothing, facial features, proportions, and expression.
-
-Environment and World
-Describe the physical world where the story takes place.
-
-Lighting
-Describe the lighting style and time of day.
-
-Color Palette
-Describe dominant colors used throughout the film.
-
-Animation Style
-Explain how characters and environments move.
-
-Camera Direction
-Describe camera behavior such as:
-- wide shots
-- close-ups
-- slow pans
-- gentle zooms
-- perspective
-
-Temporal Shot Plan
-Provide a clear sequential shot plan (4-8 shots) in story order.
-Each shot must include:
-- subject
-- action
-- camera position + lens feel
-- camera movement
-- continuity anchors (wardrobe/props/location)
-
-Scene Guidance
-Create 3–6 short cinematic scene ideas that follow the story.
-
-Each scene should describe:
-- what happens
-- camera framing
-- character action
-- environment details
-
-Emotion and Tone
-Describe the emotional atmosphere of the film.
-
-Pacing
-Describe how fast or slow the film should feel.
+The picture_book_paragraphs must be an array of 3-6 strings.
+The first paragraph should open the book naturally.
+The last paragraph should close the story warmly.
 
 --------------------------------------------------
 
@@ -427,26 +349,9 @@ VISUAL CONSISTENCY
 
 Characters must keep the same appearance across all scenes.
 
-The visual style must remain consistent throughout the film.
+The visual style must remain consistent throughout the book.
 
 Avoid introducing new characters unless they exist in the story.
-
---------------------------------------------------
-
-VIDEO MODEL OPTIMIZATION
-
-The prompt must help the video model clearly imagine:
-
-- spatial layout
-- character scale
-- lighting direction
-- camera motion
-- environment depth
-
-Use descriptive cinematic language.
-
---------------------------------------------------
-
 LANGUAGE
 
 The narration language must match the provided language tag.
@@ -455,21 +360,7 @@ If the language is unknown or missing, default to:
 
 en
 
---------------------------------------------------
-
-OUTPUT FORMAT
-
-Return exactly this JSON structure:
-
-{
-  "clean_transcript": "...",
-  "language": "en",
-  "director_prompt": "..."
-}
-
-The director_prompt must be detailed, cinematic, and visually descriptive.
-
-Never return an empty director_prompt."""
+Never return an empty book_title or picture_book_paragraphs."""
 
     user = f"""RAW TRANSCRIPT (from speech-to-text):
 ---
@@ -523,10 +414,8 @@ def run_k2_cleanup(
         "model": model,
         "messages": messages,
         "temperature": float(os.getenv("K2_TEMPERATURE", "0.3")),
-        # Non-streaming: we need full message content to parse JSON (curl often uses stream: true)
         "stream": False,
     }
-    # Optional: OpenAI-style JSON mode (enable only if your endpoint supports it)
     if os.getenv("K2_JSON_MODE", "0").strip().lower() in ("1", "true", "yes"):
         payload["response_format"] = {"type": "json_object"}
 
@@ -536,7 +425,6 @@ def run_k2_cleanup(
     }
 
     timeout = float(os.getenv("K2_TIMEOUT_SECONDS", "120"))
-
     with httpx.Client(timeout=timeout) as client:
         response = client.post(url, headers=headers, json=payload)
 
@@ -565,18 +453,21 @@ def run_k2_cleanup(
 
     raw_lang = str(parsed.get("language", "")).strip()
     out_lang = _resolve_language(raw_lang, language_tag)
-    director = str(parsed.get("director_prompt", "")).strip()
-    if not director:
-        director = _fallback_director_prompt(
-            clean_transcript=clean,
-            filters=filters,
-            language=out_lang,
-        )
+    book_title = str(parsed.get("book_title", "")).strip() or _fallback_book_title(clean)
 
-    # JSON-serializable object (echoes K2 keys + any extra keys from piecewise parse)
+    raw_paragraphs = parsed.get("picture_book_paragraphs")
+    if isinstance(raw_paragraphs, list):
+        paragraphs = [str(item).strip() for item in raw_paragraphs if str(item).strip()]
+    else:
+        paragraphs = _fallback_picture_book_paragraphs(clean)
+
+    if not paragraphs:
+        paragraphs = _fallback_picture_book_paragraphs(clean)
+
     return {
         "clean_transcript": clean,
         "language": out_lang,
-        "director_prompt": director,
+        "book_title": book_title,
+        "picture_book_paragraphs": paragraphs,
         "raw_model_json": parsed,
     }

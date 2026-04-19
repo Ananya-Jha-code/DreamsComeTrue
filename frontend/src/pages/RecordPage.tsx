@@ -2,15 +2,24 @@ import { useEffect, useRef, useState } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
 import { defaultFilters, getFilterLabel } from "../filters";
 import { createJob, getJob } from "../api/jobs";
-import type { JobRecord, JobStage, StoryFilters } from "../types/job";
+import type { JobRecord, JobStage, PictureBookPage, StoryFilters } from "../types/job";
 
 type RecordLocationState = { filters?: StoryFilters };
+
+function slugify(value: string): string {
+  return value
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/^-+|-+$/g, "")
+    .slice(0, 40) || "storybook";
+}
 
 export default function RecordPage() {
   const navigate = useNavigate();
   const location = useLocation();
   const state = (location.state as RecordLocationState | null) ?? null;
   const filters = state?.filters ?? defaultFilters;
+
   const [recording, setRecording] = useState(false);
   const [seconds, setSeconds] = useState(0);
   const [done, setDone] = useState(false);
@@ -22,6 +31,7 @@ export default function RecordPage() {
   const [jobStage, setJobStage] = useState<JobStage | null>(null);
   const [jobResult, setJobResult] = useState<JobRecord["result"] | null>(null);
   const [generating, setGenerating] = useState(false);
+
   const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const animRef = useRef<number>(0);
@@ -31,39 +41,44 @@ export default function RecordPage() {
   const audioUrlRef = useRef<string | null>(null);
   const audioPlayerRef = useRef<HTMLAudioElement>(null);
 
-  const buildVideoFilename = () => {
-    const extension = jobResult?.videoMimeType?.includes("mp4") ? "mp4" : "webm";
-    const safeJobId = jobId ?? "lullaby-video";
-    return `${safeJobId}.${extension}`;
+  const storyTitle = jobResult?.bookTitle ?? "Your picture book";
+  const pages: PictureBookPage[] = jobResult?.pages ?? [];
+  const paragraphs = jobResult?.pictureBookParagraphs ?? pages.map((page) => page.paragraph);
+
+  const buildPageFilename = (page: PictureBookPage) => {
+    const index = String(page.index + 1).padStart(2, "0");
+    return `${slugify(storyTitle)}-page-${index}.jpg`;
   };
 
-  // Waveform animation
   useEffect(() => {
     const canvas = canvasRef.current;
     if (!canvas) return;
     const ctx = canvas.getContext("2d");
     if (!ctx) return;
+
     let frame = 0;
     const draw = () => {
       canvas.width = canvas.offsetWidth;
       canvas.height = canvas.offsetHeight;
       ctx.clearRect(0, 0, canvas.width, canvas.height);
-      const bars = 48;
+
+      const bars = 44;
       const barW = canvas.width / bars;
-      for (let i = 0; i < bars; i++) {
+      for (let i = 0; i < bars; i += 1) {
         const active = recording;
-        const h = active
-          ? (Math.sin(frame * 0.08 + i * 0.4) * 0.5 + 0.5) * canvas.height * 0.75 + 4
+        const height = active
+          ? (Math.sin(frame * 0.08 + i * 0.3) * 0.5 + 0.5) * canvas.height * 0.72 + 4
           : 4;
-        const alpha = active ? 0.6 + Math.sin(frame * 0.05 + i * 0.3) * 0.4 : 0.15;
-        ctx.fillStyle = `rgba(201,168,76,${alpha})`;
+        const alpha = active ? 0.65 + Math.sin(frame * 0.06 + i * 0.2) * 0.25 : 0.16;
+        ctx.fillStyle = `rgba(130, 84, 32, ${alpha})`;
         ctx.beginPath();
-        ctx.roundRect(i * barW + barW * 0.2, (canvas.height - h) / 2, barW * 0.6, h, 3);
+        ctx.roundRect(i * barW + barW * 0.18, (canvas.height - height) / 2, barW * 0.64, height, 4);
         ctx.fill();
       }
-      frame++;
+      frame += 1;
       animRef.current = requestAnimationFrame(draw);
     };
+
     draw();
     return () => cancelAnimationFrame(animRef.current);
   }, [recording]);
@@ -100,7 +115,9 @@ export default function RecordPage() {
           return;
         }
 
-        const recordedBlob = new Blob(audioChunksRef.current, { type: recorder.mimeType || "audio/webm" });
+        const recordedBlob = new Blob(audioChunksRef.current, {
+          type: recorder.mimeType || "audio/webm",
+        });
         setAudioBlob(recordedBlob);
         const nextAudioUrl = URL.createObjectURL(recordedBlob);
         audioUrlRef.current = nextAudioUrl;
@@ -119,7 +136,7 @@ export default function RecordPage() {
       setRecording(true);
 
       if (timerRef.current) clearInterval(timerRef.current);
-      timerRef.current = setInterval(() => setSeconds((s) => s + 1), 1000);
+      timerRef.current = setInterval(() => setSeconds((value) => value + 1), 1000);
 
       recorder.start();
     } catch {
@@ -201,9 +218,7 @@ export default function RecordPage() {
       setJobStage(job.stage);
       setJobResult(job.result ?? null);
 
-      if (job.stage === "ready") {
-        return;
-      }
+      if (job.stage === "ready") return;
       if (job.stage === "failed") {
         throw new Error(job.error ?? "Pipeline failed.");
       }
@@ -211,10 +226,10 @@ export default function RecordPage() {
       await new Promise((resolve) => setTimeout(resolve, 1200));
     }
 
-    throw new Error("The pipeline is still running. Please wait and try again.");
+    throw new Error("The picture book is still generating. Please wait and try again.");
   };
 
-  const handleGeneratePrompt = async () => {
+  const handleGenerateBook = async () => {
     if (!audioBlob) {
       setSubmitError("Please record your story first.");
       return;
@@ -229,162 +244,209 @@ export default function RecordPage() {
       setJobStage(created.stage as JobStage);
 
       await pollJobUntilFinished(created.jobId);
-    } catch (err) {
-      setSubmitError(err instanceof Error ? err.message : "Unable to generate video.");
+    } catch (error) {
+      setSubmitError(error instanceof Error ? error.message : "Unable to generate picture book.");
     } finally {
       setGenerating(false);
     }
   };
 
-  const fmt = (s: number) => `${Math.floor(s/60).toString().padStart(2,"0")}:${(s%60).toString().padStart(2,"0")}`;
+  const fmt = (value: number) =>
+    `${Math.floor(value / 60).toString().padStart(2, "0")}:${(value % 60).toString().padStart(2, "0")}`;
 
   return (
     <>
       <style>{`
-        @import url('https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,300;0,400;1,300;1,400&family=Instrument+Sans:wght@300;400&display=swap');
-        body{cursor:auto!important;margin:0;}
-        @keyframes rc-pulse{0%,100%{box-shadow:0 0 0 0 rgba(201,168,76,.4)}50%{box-shadow:0 0 0 20px rgba(201,168,76,0)}}
-        @keyframes rc-up{from{opacity:0;transform:translateY(20px)}to{opacity:1;transform:translateY(0)}}
-        .rc-record-btn{width:88px;height:88px;border-radius:50%;border:2px solid rgba(201,168,76,.5);background:rgba(201,168,76,.08);display:flex;align-items:center;justify-content:center;cursor:pointer;transition:all .3s ease;position:relative;}
-        .rc-record-btn:hover{background:rgba(201,168,76,.15);border-color:rgba(201,168,76,.8);}
-        .rc-record-btn.active{border-color:#c9a84c;background:rgba(201,168,76,.2);animation:rc-pulse 1.5s ease-in-out infinite;}
-        .rc-pill{font-size:.7rem;padding:.3rem .8rem;border:1px solid rgba(232,223,208,.1);border-radius:100px;color:rgba(232,223,208,.45);letter-spacing:.04em;font-family:'Instrument Sans',sans-serif;}
-        .rc-btn{display:inline-flex;align-items:center;gap:.75rem;padding:.85rem 2rem;border:1px solid rgba(201,168,76,.45);border-radius:100px;font-family:'Instrument Sans',sans-serif;font-size:.8rem;letter-spacing:.12em;text-transform:uppercase;color:#e8dfd0;background:transparent;cursor:pointer;transition:all .35s ease;position:relative;overflow:hidden;}
-        .rc-btn::before{content:'';position:absolute;inset:0;background:#c9a84c;transform:scaleX(0);transform-origin:left;transition:transform .35s ease;z-index:-1;}
-        .rc-btn:hover{color:#0d1628;border-color:#c9a84c;}
-        .rc-btn:hover::before{transform:scaleX(1);}
-        .rc-dot{width:6px;height:6px;background:#c9a84c;border-radius:50%;flex-shrink:0;transition:background .35s;}
-        .rc-btn:hover .rc-dot{background:#0d1628;}
+        @import url('https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,300;0,400;0,600;1,300;1,400;1,600&family=Instrument+Sans:wght@300;400;500&display=swap');
+        body{cursor:auto!important;margin:0;background:radial-gradient(circle at top,#f7f0e4 0%,#efe3cd 40%,#dcc8a5 100%);}
+        @keyframes pb-pulse{0%,100%{box-shadow:0 0 0 0 rgba(130,84,32,.22)}50%{box-shadow:0 0 0 20px rgba(130,84,32,0)}}
+        @keyframes pb-up{from{opacity:0;transform:translateY(18px)}to{opacity:1;transform:translateY(0)}}
+        .pb-page{min-height:100vh;color:#2a2116;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:3rem 1.5rem 4rem;text-align:center;position:relative;overflow:hidden;}
+        .pb-page::before{content:'';position:absolute;inset:0;background:radial-gradient(circle at 20% 20%,rgba(255,255,255,.36),transparent 30%),radial-gradient(circle at 80% 10%,rgba(255,255,255,.26),transparent 26%),radial-gradient(circle at 50% 120%,rgba(90,60,20,.18),transparent 40%);pointer-events:none;}
+        .pb-shell{width:min(1120px,100%);position:relative;z-index:1;}
+        .pb-back{position:absolute;top:0;left:0;background:none;border:1px solid rgba(42,33,22,.15);color:rgba(42,33,22,.65);border-radius:999px;padding:.7rem 1.15rem;font-family:'Instrument Sans',sans-serif;font-size:.72rem;letter-spacing:.14em;text-transform:uppercase;cursor:pointer;}
+        .pb-step{font-family:'Instrument Sans',sans-serif;font-size:.66rem;letter-spacing:.34em;text-transform:uppercase;color:rgba(42,33,22,.45);margin:0 0 1rem;}
+        .pb-title{font-family:'Cormorant Garamond',serif;font-size:clamp(2.7rem,6.5vw,4.8rem);font-weight:400;line-height:1.03;margin:0 0 .9rem;animation:pb-up .65s ease both;}
+        .pb-title em{font-style:italic;color:#8a5a22;}
+        .pb-sub{font-family:'Instrument Sans',sans-serif;font-size:clamp(.95rem,1.9vw,1.05rem);line-height:1.7;color:rgba(42,33,22,.62);max-width:680px;margin:0 auto 1.8rem;animation:pb-up .75s ease .05s both;}
+        .pb-micro{font-size:.72rem;letter-spacing:.16em;text-transform:uppercase;color:rgba(42,33,22,.35);margin-top:.8rem;}
+        .pb-record-btn{width:94px;height:94px;border-radius:50%;border:1px solid rgba(130,84,32,.38);background:rgba(255,255,255,.34);display:flex;align-items:center;justify-content:center;cursor:pointer;transition:transform .25s ease, background .25s ease, border-color .25s ease;}
+        .pb-record-btn:hover{transform:translateY(-2px);background:rgba(255,255,255,.58);border-color:rgba(130,84,32,.6);}
+        .pb-record-btn.active{background:rgba(130,84,32,.12);animation:pb-pulse 1.6s ease-in-out infinite;}
+        .pb-stop{width:26px;height:26px;border-radius:6px;background:#8a5a22;}
+        .pb-dot{width:22px;height:22px;border-radius:50%;background:#8a5a22;}
+        .pb-bar{width:100%;max-width:540px;height:92px;margin:0 auto 1.75rem;border-radius:22px;border:1px solid rgba(130,84,32,.12);background:rgba(255,255,255,.48);overflow:hidden;backdrop-filter:blur(10px);}
+        .pb-btn-row{display:flex;flex-wrap:wrap;gap:1rem;justify-content:center;margin:1.6rem 0 2.3rem;}
+        .pb-btn{display:inline-flex;align-items:center;gap:.7rem;padding:.85rem 1.6rem;border-radius:999px;border:1px solid rgba(130,84,32,.38);background:#8a5a22;color:#fff8ee;font-family:'Instrument Sans',sans-serif;font-size:.8rem;letter-spacing:.12em;text-transform:uppercase;cursor:pointer;text-decoration:none;transition:transform .2s ease, background .2s ease;}
+        .pb-btn:hover{transform:translateY(-1px);background:#744818;}
+        .pb-btn.secondary{background:rgba(255,255,255,.5);color:#3c2a19;}
+        .pb-btn.secondary:hover{background:rgba(255,255,255,.7);}
+        .pb-pill{font-size:.7rem;padding:.35rem .85rem;border:1px solid rgba(42,33,22,.12);border-radius:999px;color:rgba(42,33,22,.62);background:rgba(255,255,255,.4);}
+        .pb-panel{width:min(980px,100%);margin:1.4rem auto 0;text-align:left;border:1px solid rgba(130,84,32,.12);border-radius:28px;background:rgba(255,248,236,.72);box-shadow:0 24px 70px rgba(84,56,20,.08);overflow:hidden;}
+        .pb-panel-top{padding:1.35rem 1.35rem 0;display:flex;justify-content:space-between;gap:1rem;align-items:flex-start;flex-wrap:wrap;}
+        .pb-stage{font-family:'Instrument Sans',sans-serif;font-size:.72rem;letter-spacing:.16em;text-transform:uppercase;color:#8a5a22;}
+        .pb-book-title{font-family:'Cormorant Garamond',serif;font-size:clamp(1.8rem,4vw,2.8rem);font-weight:400;margin:.15rem 0 0;}
+        .pb-section-label{font-family:'Instrument Sans',sans-serif;font-size:.68rem;letter-spacing:.16em;text-transform:uppercase;color:rgba(42,33,22,.48);margin:0 0 .6rem;}
+        .pb-copy{font-family:'Instrument Sans',sans-serif;font-size:.92rem;line-height:1.7;color:rgba(42,33,22,.86);margin:0;}
+        .pb-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(290px,1fr));gap:1rem;padding:1.35rem;}
+        .pb-page-card{border:1px solid rgba(130,84,32,.14);border-radius:24px;background:linear-gradient(180deg,rgba(255,255,255,.95),rgba(250,243,232,.96));overflow:hidden;box-shadow:0 10px 35px rgba(84,56,20,.06);}
+        .pb-page-art{position:relative;background:#fff6ea;aspect-ratio:4/5;overflow:hidden;}
+        .pb-page-art img{width:100%;height:100%;object-fit:cover;display:block;}
+        .pb-page-num{position:absolute;top:14px;left:14px;padding:.35rem .65rem;border-radius:999px;background:rgba(255,255,255,.88);font-family:'Instrument Sans',sans-serif;font-size:.68rem;letter-spacing:.14em;text-transform:uppercase;color:#8a5a22;}
+        .pb-page-caption{padding:1rem 1rem 1.15rem;}
+        .pb-page-caption p{margin:0;}
+        .pb-page-caption .small{margin-top:.8rem;font-size:.72rem;color:rgba(42,33,22,.48);letter-spacing:.12em;text-transform:uppercase;}
+        .pb-loader{padding:1.1rem 1.35rem 1.5rem;font-family:'Instrument Sans',sans-serif;color:rgba(42,33,22,.72);display:flex;align-items:center;gap:.8rem;}
+        .pb-spinner{width:14px;height:14px;border-radius:50%;border:2px solid rgba(130,84,32,.25);border-top-color:#8a5a22;animation:spin .8s linear infinite;}
+        @keyframes spin{to{transform:rotate(360deg)}}
+        .pb-audio{max-width:520px;width:100%;margin:0 auto 1rem;display:flex;flex-direction:column;gap:.8rem;align-items:center;}
+        .pb-audio audio{width:100%;}
+        .pb-error{font-family:'Instrument Sans',sans-serif;font-size:.82rem;color:#8a2e2e;max-width:640px;margin:0 auto 1rem;line-height:1.6;}
+        .pb-summary{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:.9rem;padding:0 1.35rem 1.35rem;}
+        .pb-summary-card{border:1px solid rgba(130,84,32,.12);border-radius:20px;background:rgba(255,255,255,.58);padding:1rem;}
+        .pb-summary-card h3{font-family:'Instrument Sans',sans-serif;font-size:.68rem;letter-spacing:.16em;text-transform:uppercase;color:rgba(42,33,22,.46);margin:0 0 .55rem;}
+        .pb-summary-card p{margin:0;font-family:'Instrument Sans',sans-serif;font-size:.92rem;line-height:1.6;color:rgba(42,33,22,.86);}
+        .pb-summary-card ol{margin:0;padding-left:1.15rem;font-family:'Instrument Sans',sans-serif;font-size:.9rem;line-height:1.6;color:rgba(42,33,22,.86);}
+        @media (max-width: 720px){.pb-page{padding:4.5rem 1rem 3rem}.pb-back{position:static;margin-bottom:1.25rem}.pb-panel-top{padding:1rem 1rem 0}.pb-grid,.pb-summary{padding:1rem}.pb-grid{grid-template-columns:1fr}.pb-btn-row{justify-content:flex-start}}
       `}</style>
 
-      <div style={{fontFamily:"'Instrument Sans',sans-serif",fontWeight:300,background:"linear-gradient(160deg,#0d1628 0%,#080d18 60%)",color:"#e8dfd0",minHeight:"100vh",display:"flex",flexDirection:"column",alignItems:"center",justifyContent:"center",padding:"3rem 1.5rem",textAlign:"center"}}>
-
-        {/* Back */}
-        <button type="button" onClick={() => navigate("/picker",{state:{filters}})} style={{position:"absolute",top:"2.5rem",left:"2rem",background:"none",border:"none",color:"rgba(232,223,208,.3)",fontSize:".68rem",letterSpacing:".2em",textTransform:"uppercase",cursor:"pointer",fontFamily:"'Instrument Sans',sans-serif"}}>
-          ← Picker
-        </button>
-
-        {/* Step label */}
-        <p style={{fontSize:".62rem",letterSpacing:".32em",textTransform:"uppercase",color:"#c9a84c",marginBottom:"1rem"}}>Step 2 of 2</p>
-
-        {/* Title */}
-        <h1 style={{fontFamily:"'Cormorant Garamond',serif",fontSize:"clamp(2.5rem,7vw,4rem)",fontWeight:300,color:"#e8dfd0",margin:"0 0 1rem",lineHeight:1.05}}>
-          {done ? <><em style={{fontStyle:"italic",color:"#c9a84c"}}>Beautiful.</em> Ready to weave.</> : recording ? <>Listening<em style={{fontStyle:"italic",color:"#c9a84c"}}>…</em></> : <>Tell your <em style={{fontStyle:"italic",color:"#c9a84c"}}>story</em></>}
-        </h1>
-        <p style={{fontSize:".85rem",color:"rgba(232,223,208,.38)",maxWidth:400,lineHeight:1.6,marginBottom:"3rem"}}>
-          {done ? "Your story has been captured. Generate your Veo video below." : recording ? "Speak naturally. Pause whenever you like. Tap again when you're done." : "Tap the button below and speak. We'll handle the rest."}
-        </p>
-
-        {micError && (
-          <p style={{fontSize:".78rem",color:"#ffb4b4",maxWidth:500,margin:"0 0 1.5rem",lineHeight:1.6}}>{micError}</p>
-        )}
-        {submitError && (
-          <p style={{fontSize:".78rem",color:"#ffb4b4",maxWidth:560,margin:"0 0 1.5rem",lineHeight:1.6}}>{submitError}</p>
-        )}
-
-        {/* Waveform */}
-        <div style={{width:"100%",maxWidth:480,height:80,marginBottom:"2.5rem",borderRadius:12,overflow:"hidden",border:"1px solid rgba(201,168,76,.08)",background:"rgba(8,13,24,.5)"}}>
-          <canvas ref={canvasRef} style={{width:"100%",height:"100%"}} />
-        </div>
-
-        {/* Timer */}
-        {(recording || done) && (
-          <div style={{fontFamily:"'Cormorant Garamond',serif",fontSize:"2.5rem",fontWeight:300,color:"#c9a84c",marginBottom:"2rem",letterSpacing:".05em"}}>
-            {fmt(seconds)}
-          </div>
-        )}
-
-        {/* Record button */}
-        {!done && (
-          <button type="button" className={`rc-record-btn${recording?" active":""}`} onClick={toggleRecording} style={{marginBottom:"2rem"}}>
-            {recording
-              ? <div style={{width:28,height:28,background:"#c9a84c",borderRadius:4}} />
-              : <div style={{width:28,height:28,background:"#c9a84c",borderRadius:"50%"}} />}
+      <div className="pb-page">
+        <div className="pb-shell">
+          <button type="button" onClick={() => navigate("/picker", { state: { filters } })} className="pb-back">
+            ← Picker
           </button>
-        )}
-        {!done && <p style={{fontSize:".7rem",letterSpacing:".15em",textTransform:"uppercase",color:"rgba(232,223,208,.25)",marginBottom:"3rem"}}>{recording ? "Tap to stop" : "Tap to begin"}</p>}
 
-        {/* Generate / redo */}
-        {done && (
-          <div style={{display:"flex",flexWrap:"wrap",gap:"1rem",justifyContent:"center",marginBottom:"3rem"}}>
-            <button type="button" onClick={resetRecording} style={{background:"none",border:"1px solid rgba(232,223,208,.12)",color:"rgba(232,223,208,.45)",borderRadius:"100px",padding:".85rem 2rem",fontFamily:"'Instrument Sans',sans-serif",fontSize:".8rem",letterSpacing:".12em",textTransform:"uppercase",cursor:"pointer",transition:"all .3s"}}>
-              Record again
-            </button>
-            <button type="button" className="rc-btn" onClick={handleGeneratePrompt} disabled={generating} style={{opacity: generating ? 0.7 : 1, cursor: generating ? "wait" : "pointer"}}>
-              <span className="rc-dot" />
-              {generating ? "Generating..." : "Generate Video"}
-            </button>
+          <p className="pb-step">Step 2 of 2</p>
+          <h1 className="pb-title">
+            {done ? (
+              <>
+                Your story is ready to <em>illustrate</em>.
+              </>
+            ) : recording ? (
+              <>
+                Listening to your <em>story</em>
+              </>
+            ) : (
+              <>
+                Record your <em>picture book</em>
+              </>
+            )}
+          </h1>
+          <p className="pb-sub">
+            Speak naturally, pause when you want, and we’ll turn the narration into a clean transcript, split it into pages, and generate illustrations that match the style you picked.
+          </p>
+
+          {micError && <p className="pb-error">{micError}</p>}
+          {submitError && <p className="pb-error">{submitError}</p>}
+
+          <div className="pb-bar">
+            <canvas ref={canvasRef} style={{ width: "100%", height: "100%" }} />
           </div>
-        )}
 
-        {(jobStage || jobResult) && (
-          <div style={{width:"100%",maxWidth:700,marginBottom:"2rem",textAlign:"left",padding:"1rem",border:"1px solid rgba(201,168,76,.15)",borderRadius:12,background:"rgba(8,13,24,.45)"}}>
-            {jobId && <p style={{margin:"0 0 .6rem",fontSize:".68rem",letterSpacing:".12em",textTransform:"uppercase",color:"rgba(232,223,208,.45)"}}>Job: {jobId}</p>}
-            {jobStage && <p style={{margin:"0 0 .6rem",fontSize:".72rem",letterSpacing:".1em",textTransform:"uppercase",color:"#c9a84c"}}>Stage: {jobStage.replaceAll("_", " ")}</p>}
-            {jobResult?.transcript && (
-              <div style={{marginBottom:".8rem"}}>
-                <p style={{margin:"0 0 .35rem",fontSize:".7rem",letterSpacing:".1em",textTransform:"uppercase",color:"rgba(232,223,208,.5)"}}>Speech to text</p>
-                <p style={{margin:0,fontSize:".85rem",lineHeight:1.6,color:"rgba(232,223,208,.92)"}}>{jobResult.transcript}</p>
-              </div>
-            )}
-            {jobResult?.directorPrompt && (
-              <div>
-                <p style={{margin:"0 0 .35rem",fontSize:".7rem",letterSpacing:".1em",textTransform:"uppercase",color:"rgba(232,223,208,.5)"}}>Director prompt</p>
-                <p style={{margin:0,fontSize:".85rem",lineHeight:1.6,color:"rgba(232,223,208,.92)"}}>{jobResult.directorPrompt}</p>
-              </div>
-            )}
-            {jobResult?.videoDataUrl && (
-              <div style={{marginTop:"1rem"}}>
-                <p style={{margin:"0 0 .5rem",fontSize:".7rem",letterSpacing:".1em",textTransform:"uppercase",color:"rgba(232,223,208,.5)"}}>Generated video</p>
-                <video
-                  controls
-                  playsInline
-                  src={jobResult.videoDataUrl}
-                  style={{width:"100%",borderRadius:12,border:"1px solid rgba(201,168,76,.2)",background:"#000"}}
-                />
-                <a
-                  href={jobResult.videoDataUrl}
-                  download={buildVideoFilename()}
-                  className="rc-btn"
-                  style={{marginTop:".85rem",textDecoration:"none"}}
-                >
-                  <span className="rc-dot" />
-                  Download video
-                </a>
-                {(jobResult.videoProvider || jobResult.videoModel) && (
-                  <p style={{margin:".5rem 0 0",fontSize:".68rem",letterSpacing:".08em",textTransform:"uppercase",color:"rgba(232,223,208,.45)"}}>
-                    {jobResult.videoProvider ?? "provider"}{jobResult.videoModel ? ` • ${jobResult.videoModel}` : ""}
-                  </p>
+          {(recording || done) && <div className="pb-title" style={{ fontSize: "clamp(2rem, 4vw, 3rem)", marginBottom: "1.2rem" }}>{fmt(seconds)}</div>}
+
+          {!done && (
+            <>
+              <button type="button" className={`pb-record-btn${recording ? " active" : ""}`} onClick={toggleRecording}>
+                {recording ? <div className="pb-stop" /> : <div className="pb-dot" />}
+              </button>
+              <p className="pb-micro">{recording ? "Tap to stop" : "Tap to begin"}</p>
+            </>
+          )}
+
+          {done && (
+            <div className="pb-btn-row">
+              <button type="button" className="pb-btn secondary" onClick={resetRecording}>
+                Record again
+              </button>
+              <button type="button" className="pb-btn" onClick={handleGenerateBook} disabled={generating} style={{ opacity: generating ? 0.75 : 1, cursor: generating ? "wait" : "pointer" }}>
+                <span>{generating ? "Building..." : "Generate Picture Book"}</span>
+              </button>
+            </div>
+          )}
+
+          {done && audioUrl && (
+            <div className="pb-audio">
+              <audio ref={audioPlayerRef} controls src={audioUrl} />
+              <button
+                type="button"
+                onClick={() => {
+                  if (!audioPlayerRef.current) return;
+                  audioPlayerRef.current.currentTime = 0;
+                  void audioPlayerRef.current.play();
+                }}
+                className="pb-btn secondary"
+              >
+                Replay recording
+              </button>
+            </div>
+          )}
+
+          <div style={{ display: "flex", flexWrap: "wrap", gap: ".5rem", justifyContent: "center", marginTop: "1.2rem" }}>
+            {(["visualStyle", "narratorVoice", "readingLevel", "tone", "pacing"] as (keyof StoryFilters)[]).map((key) => (
+              <span key={key} className="pb-pill">
+                {getFilterLabel(key, filters[key])}
+              </span>
+            ))}
+          </div>
+
+          {(jobStage || jobResult) && (
+            <div className="pb-panel">
+              <div className="pb-panel-top">
+                <div>
+                  {jobId && <p className="pb-stage">Job: {jobId}</p>}
+                  {jobStage && <p className="pb-stage">Stage: {jobStage.replaceAll("_", " ")}</p>}
+                  <h2 className="pb-book-title">{storyTitle}</h2>
+                </div>
+                {jobStage && jobStage !== "ready" && (
+                  <div className="pb-loader">
+                    <span className="pb-spinner" />
+                    <span>Generating the storybook pages now.</span>
+                  </div>
                 )}
               </div>
-            )}
-          </div>
-        )}
 
-        {done && audioUrl && (
-          <div style={{width:"100%",maxWidth:520,marginBottom:"2rem",display:"flex",flexDirection:"column",gap:"0.75rem",alignItems:"center"}}>
-            <audio ref={audioPlayerRef} controls src={audioUrl} style={{width:"100%",maxWidth:520}} />
-            <button
-              type="button"
-              onClick={() => {
-                if (!audioPlayerRef.current) return;
-                audioPlayerRef.current.currentTime = 0;
-                void audioPlayerRef.current.play();
-              }}
-              style={{background:"none",border:"1px solid rgba(201,168,76,.45)",color:"#e8dfd0",borderRadius:"100px",padding:".65rem 1.5rem",fontFamily:"'Instrument Sans',sans-serif",fontSize:".74rem",letterSpacing:".12em",textTransform:"uppercase",cursor:"pointer"}}
-            >
-              Replay Recording
-            </button>
-          </div>
-        )}
+              <div className="pb-summary">
+                <div className="pb-summary-card">
+                  <h3>Clean transcript</h3>
+                  <p>{jobResult?.cleanTranscript ?? jobResult?.transcript ?? "Waiting for transcript..."}</p>
+                </div>
+                <div className="pb-summary-card">
+                  <h3>Story pages</h3>
+                  {paragraphs.length > 0 ? (
+                    <ol>
+                      {paragraphs.map((paragraph, index) => (
+                        <li key={`${index}-${paragraph.slice(0, 12)}`}>{paragraph}</li>
+                      ))}
+                    </ol>
+                  ) : (
+                    <p>Pages will appear here after the AI finishes splitting the story.</p>
+                  )}
+                </div>
+              </div>
 
-        {/* Selected filters summary */}
-        <div style={{display:"flex",flexWrap:"wrap",gap:".5rem",justifyContent:"center",maxWidth:500}}>
-          {(["visualStyle","narratorVoice","readingLevel","tone","pacing"] as (keyof StoryFilters)[]).map(k => (
-            <span key={k} className="rc-pill">{getFilterLabel(k, filters[k])}</span>
-          ))}
+              <div className="pb-grid">
+                {pages.map((page) => (
+                  <article key={page.index} className="pb-page-card">
+                    <div className="pb-page-art">
+                      <span className="pb-page-num">Page {page.index + 1}</span>
+                      <img src={page.imageDataUrl} alt={`Illustration for page ${page.index + 1}`} />
+                    </div>
+                    <div className="pb-page-caption">
+                      <p className="pb-copy">{page.paragraph}</p>
+                      <p className="small">{page.imageProvider}{page.imageModel ? ` · ${page.imageModel}` : ""}</p>
+                      <div className="pb-btn-row" style={{ justifyContent: "flex-start", margin: "1rem 0 0" }}>
+                        <a href={page.imageDataUrl} download={buildPageFilename(page)} className="pb-btn secondary">
+                          Download page
+                        </a>
+                      </div>
+                    </div>
+                  </article>
+                ))}
+              </div>
+            </div>
+          )}
         </div>
-
       </div>
     </>
   );

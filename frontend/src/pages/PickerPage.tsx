@@ -4,10 +4,10 @@ import { FILTER_CONFIG, defaultFilters, getFilterLabel } from "../filters";
 import type { StoryFilters } from "../types/job";
 
 const AXIS_META: Record<string, { emoji: string; color: string; glow: string; bg: string; border: string; desc: string }> = {
-  visualStyle:   { emoji:"🎨", color:"#f472b6", glow:"rgba(244,114,182,.25)", bg:"rgba(244,114,182,.06)", border:"rgba(244,114,182,.25)", desc:"How your film will look" },
+  visualStyle:   { emoji:"🎨", color:"#f472b6", glow:"rgba(244,114,182,.25)", bg:"rgba(244,114,182,.06)", border:"rgba(244,114,182,.25)", desc:"How your storybook will look" },
   narratorVoice: { emoji:"🎙️", color:"#60a5fa", glow:"rgba(96,165,250,.25)",  bg:"rgba(96,165,250,.06)",  border:"rgba(96,165,250,.25)",  desc:"Who tells your story" },
   readingLevel:  { emoji:"📖", color:"#34d399", glow:"rgba(52,211,153,.25)",  bg:"rgba(52,211,153,.06)",  border:"rgba(52,211,153,.25)",  desc:"Vocabulary & complexity" },
-  tone:          { emoji:"🌙", color:"#a78bfa", glow:"rgba(167,139,250,.25)", bg:"rgba(167,139,250,.06)", border:"rgba(167,139,250,.25)", desc:"Emotional feel of the film" },
+  tone:          { emoji:"🌙", color:"#a78bfa", glow:"rgba(167,139,250,.25)", bg:"rgba(167,139,250,.06)", border:"rgba(167,139,250,.25)", desc:"Emotional feel of the pages" },
   pacing:        { emoji:"⏱️", color:"#fb923c", glow:"rgba(251,146,60,.25)",  bg:"rgba(251,146,60,.06)",  border:"rgba(251,146,60,.25)",  desc:"Rhythm of narration & shots" },
 };
 
@@ -822,7 +822,7 @@ export default function PickerPage() {
             <div style={{marginBottom:"2.5rem"}}>
               <p className="pk-step-label">Step 1 of 2</p>
               <h1 className="pk-heading">Choose your <em>version</em></h1>
-              <p className="pk-sub">Every axis shapes your film. Pick one per row — or keep the defaults and begin immediately.</p>
+              <p className="pk-sub">Every axis shapes your storybook. Pick one per row — or keep the defaults and begin immediately.</p>
             </div>
 
             <div className="pk-progress">
