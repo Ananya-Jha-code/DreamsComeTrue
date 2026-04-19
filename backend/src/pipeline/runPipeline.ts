@@ -6,6 +6,23 @@ import {
 } from "../services/mlServiceClient.js";
 import type { JobRecord } from "../types/job.js";
 
+function deriveAudioDurationSeconds(transcript: {
+  text: string;
+  words: Array<{ word: string; start: number; end: number }>;
+}): number {
+  const wordEnds = transcript.words
+    .map((w) => Number(w.end))
+    .filter((n) => Number.isFinite(n) && n > 0);
+  if (wordEnds.length > 0) {
+    return Math.max(...wordEnds);
+  }
+
+  // Fallback when STT does not return timings: estimate from speaking rate.
+  const wordCount = transcript.text.trim().split(/\s+/).filter(Boolean).length;
+  const wordsPerSecond = 2.4;
+  return Math.max(6, wordCount / wordsPerSecond);
+}
+
 /**
  * Strict stack pipeline orchestration:
  * - ElevenLabs STT for transcription (record branch) — language tag from response
@@ -47,8 +64,10 @@ export async function runPipeline(job: JobRecord, audioBuffer?: Buffer): Promise
   });
 
   setStage(id, "generating_video");
+  const targetDurationSeconds = Math.min(120, Math.max(6, deriveAudioDurationSeconds(transcript)));
   const video = await generateVideoFromDirectorPrompt({
     directorPrompt,
+    targetDurationSeconds,
   });
   const videoDataUrl = `data:${video.mimeType};base64,${video.videoBase64}`;
 
@@ -56,6 +75,7 @@ export async function runPipeline(job: JobRecord, audioBuffer?: Buffer): Promise
     provider: video.provider,
     model: video.model,
     mimeType: video.mimeType,
+    targetDurationSeconds,
     bytesApprox: Math.round((video.videoBase64.length * 3) / 4),
   });
 

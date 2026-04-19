@@ -68,6 +68,7 @@ export async function cleanupTranscript(input: {
 
 export async function generateVideoFromDirectorPrompt(input: {
   directorPrompt: string;
+  targetDurationSeconds?: number;
 }): Promise<{
   videoBase64: string;
   mimeType: string;
@@ -75,7 +76,7 @@ export async function generateVideoFromDirectorPrompt(input: {
   model: string;
 }> {
   const res = await mlPost<
-    { director_prompt: string },
+    { director_prompt: string; target_duration_seconds?: number },
     {
       video_base64: string;
       mime_type: string;
@@ -84,6 +85,7 @@ export async function generateVideoFromDirectorPrompt(input: {
     }
   >("/v1/video", {
     director_prompt: input.directorPrompt,
+    target_duration_seconds: input.targetDurationSeconds,
   });
   return {
     videoBase64: res.video_base64,
