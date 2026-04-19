@@ -26,7 +26,7 @@ Job stages are: `queued` → `transcribing` → `cleaning` → `generating_pages
 |---|---|
 | Frontend | React + Vite + Tailwind CSS |
 | Backend | Node.js + Express + FastAPI (ML calls) |
-| Transcription | Whisper large-v3 on Modal or Replicate |
+| Transcription | Eleven Labs |
 | Cleanup / Planning / Rewrite | K2 Think primary, Gemini 2.5 Pro fallback |
 | Image generation | Gemini for page illustrations |
 | Narration audio | Gemini 2.5 native multimodal TTS |
