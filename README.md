@@ -33,9 +33,8 @@ Job stages are: `queued` → `transcribing` → `cleaning` → `generating_pages
 | Ambient audio | Gemini 2.5 multimodal audio |
 | Assembly | Page-by-page image composition |
 | Storage | Supabase (session cache + temporary image hosting) |
-| Deployment | Vercel (frontend), Modal or Fly.io (backend services) |
+| Deployment | Digital Ocean |
 
-**How this lines up with the current codebase:** The running app uses **ElevenLabs** speech-to-text (not Whisper on Modal/Replicate), **K2 Think** for cleanup/planning (Gemini fallback is PRD, not implemented in repo), and **Together** for **Gemini** images. Gemini TTS, ambient audio, FFmpeg assembly, Supabase
 ---
 
 ## Architecture and performance
