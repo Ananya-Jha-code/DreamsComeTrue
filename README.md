@@ -4,7 +4,7 @@
 
 Web app scaffold for the PRD pipeline: spoken story → narrated illustrated picture book.
 
-Turn spoken stories into a **narrated illustrated picture book**: upload or record audio, choose visual style / reading level / tone, and get page-by-page text plus **FLUX** illustrations driven by your transcript.
+Turn spoken stories into a **narrated illustrated picture book**: upload or record audio, choose visual style / reading level / tone, and get page-by-page text plus **Gemini** illustrations driven by your transcript.
 
 ![System architecture](docs/architecture.png)
 
@@ -28,15 +28,14 @@ Job stages are: `queued` → `transcribing` → `cleaning` → `generating_pages
 | Backend | Node.js + Express + FastAPI (ML calls) |
 | Transcription | Whisper large-v3 on Modal or Replicate |
 | Cleanup / Planning / Rewrite | K2 Think primary, Gemini 2.5 Pro fallback |
-| Image generation | FLUX.1-schnell on Together for page illustrations |
+| Image generation | Gemini for page illustrations |
 | Narration audio | Gemini 2.5 native multimodal TTS |
 | Ambient audio | Gemini 2.5 multimodal audio |
 | Assembly | Page-by-page image composition |
 | Storage | Supabase (session cache + temporary image hosting) |
 | Deployment | Vercel (frontend), Modal or Fly.io (backend services) |
 
-**How this lines up with the current codebase:** The running app uses **ElevenLabs** speech-to-text (not Whisper on Modal/Replicate), **K2 Think** for cleanup/planning (Gemini fallback is PRD, not implemented in repo), and **Together** for **FLUX** images. Gemini TTS, ambient audio, FFmpeg assembly, Supabase, and the deployment targets above are **not wired yet** — they remain part of the broader PRD / roadmap.
-
+**How this lines up with the current codebase:** The running app uses **ElevenLabs** speech-to-text (not Whisper on Modal/Replicate), **K2 Think** for cleanup/planning (Gemini fallback is PRD, not implemented in repo), and **Together** for **Gemini** images. Gemini TTS, ambient audio, FFmpeg assembly, Supabase
 ---
 
 ## Architecture and performance
@@ -92,7 +91,7 @@ Job stages are: `queued` → `transcribing` → `cleaning` → `generating_pages
 | `GET` | `/health` | ML service liveness |
 | `POST` | `/v1/transcribe` | `audioBase64` + `mimeType` → ElevenLabs STT |
 | `POST` | `/v1/cleanup` | Transcript + `filters` → K2 cleanup / paragraph planning |
-| `POST` | `/v1/illustration` | `prompt` + `aspect_ratio` → Together FLUX images |
+| `POST` | `/v1/illustration` | `prompt` + `aspect_ratio` → Gemini |
 
 All `/v1/*` routes expect header **`x-ml-token`** matching `ML_SERVICE_TOKEN`.
 
@@ -127,9 +126,7 @@ For the current transcription flow, `ELEVENLABS_API_KEY` is the primary ML servi
 | `K2THINK_API_KEY` (or `K2_API_KEY`) | Story cleanup / planning | OpenAI-compatible Bearer token |
 | `K2_BASE_URL` | K2 client | Default `https://api.k2think.ai/v1` |
 | `K2_CLEANUP_MODEL` | Cleanup | e.g. `MBZUAI-IFM/K2-Think-v2` |
-| `TOGETHER_API_KEY` | Images | Together API for FLUX |
-| `FLUX_MODEL` | Images | e.g. `black-forest-labs/FLUX.1-schnell` |
-| `FLUX_TIMEOUT_SECONDS` | Images | Request timeout |
+| `Gemini` | Images | Gemini |
 
 ---
 
@@ -231,7 +228,7 @@ Outputs `frontend/dist` and `backend/dist`.
 
 ## Important Note
 
-Current ML / FFmpeg / Supabase logic is scaffold-level and intentionally stubbed in places, but the architecture and provider boundaries for the **picture-book workflow** (STT → K2 cleanup → FLUX pages) match the pipeline described above. Items in **Required Stack** such as Gemini TTS, ambient audio, Supabase storage, and deployment targets are part of the PRD and are not fully implemented in this repository yet.
+Current ML / FFmpeg / Supabase logic is scaffold-level and intentionally stubbed in places, but the architecture and provider boundaries for the **picture-book workflow** (STT → K2 cleanup → FLUX pages) match the pipeline described above. Items in **Required Stack** such as Gemini TTS, ambient audio, Supabase storage, and deployment targets are part of the PRD implemented in this repository yet.
 
 ---
 
