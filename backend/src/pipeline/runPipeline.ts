@@ -102,47 +102,175 @@ function buildNoTextPrompt(basePrompt: string): string {
   return `${basePrompt}\nABSOLUTE RULE: zero readable text in the image. Do not render letters, numbers, words, labels, logos, signage, captions, UI text, speech bubbles, or watermarks. If an object would normally contain text (book cover, sign, poster, screen), keep it blank or unreadable.`;
 }
 
+function sanitizeForImagePrompt(input: string): string {
+  const replacements: Array<[RegExp, string]> = [
+    [/\b(kill|killed|killing|murder|murdered|blood|gore|dead|death|die|dies|shoot|shot|stab|weapon|gun|knife|war|bomb|explosion|suicide|self-harm)\b/gi, "danger"],
+    [/\b(sexy|nude|naked|lingerie|seduce|erotic|sensual)\b/gi, "friendly"],
+    [/\b(president|senate|election|campaign|protest|riot|terrorist|extremist)\b/gi, "community"],
+    [/\s+/g, " "],
+  ];
+
+  let value = input;
+  for (const [pattern, replacement] of replacements) {
+    value = value.replace(pattern, replacement);
+  }
+  return value.trim();
+}
+
+function simplifySceneNarrative(paragraph: string): string {
+  const sanitized = sanitizeForImagePrompt(paragraph);
+  const sentences = sanitized
+    .split(/(?<=[.!?])\s+/)
+    .map((part) => part.trim())
+    .filter(Boolean);
+  const compact = sentences.slice(0, 2).join(" ");
+  return (compact || sanitized).slice(0, 320);
+}
+
+function detectProtagonistType(text: string): "vehicle" | "animal" | "robot" | "creature" | "person" {
+  const source = text.toLowerCase();
+  if (/\b(car|truck|train|bus|plane|airplane|ship|boat|rocket|vehicle)\b/.test(source)) {
+    return "vehicle";
+  }
+  if (/\b(cat|dog|bear|fox|rabbit|bunny|bird|lion|tiger|wolf|mouse|horse|animal|puppy|kitten)\b/.test(source)) {
+    return "animal";
+  }
+  if (/\b(robot|android|machine|mech)\b/.test(source)) {
+    return "robot";
+  }
+  if (/\b(dragon|monster|giant|unicorn|fairy|wizard|alien|creature)\b/.test(source)) {
+    return "creature";
+  }
+  return "person";
+}
+
+function buildCharacterAnchorBrief(openingParagraph: string): string {
+  const protagonistType = detectProtagonistType(openingParagraph);
+
+  if (protagonistType === "vehicle") {
+    return [
+      "Primary protagonist lock: same vehicle character in every page.",
+      "Keep identical body shape, wheel size, face placement, and paint colors.",
+      "Do not redesign model details between pages.",
+    ].join(" ");
+  }
+
+  if (protagonistType === "animal") {
+    return [
+      "Primary protagonist lock: same animal character in every page.",
+      "Keep identical species, fur pattern/colors, eye shape, and body proportions.",
+      "Do not redesign or switch to another species.",
+    ].join(" ");
+  }
+
+  if (protagonistType === "robot") {
+    return [
+      "Primary protagonist lock: same robot character in every page.",
+      "Keep identical silhouette, head shape, panel layout, and core accent colors.",
+      "Do not redesign mechanical parts between pages.",
+    ].join(" ");
+  }
+
+  if (protagonistType === "creature") {
+    return [
+      "Primary protagonist lock: same fantasy creature character in every page.",
+      "Keep identical species traits, horns/wings/tail shape, and color markings.",
+      "Do not switch creature type or redesign signature features.",
+    ].join(" ");
+  }
+
+  return [
+    "Primary protagonist lock: same person character in every page.",
+    "Keep identical face shape, hairstyle, outfit colors, and body proportions.",
+    "Do not change age, identity, or wardrobe design between pages.",
+  ].join(" ");
+}
+
+function isModerationError(error: unknown): boolean {
+  if (!(error instanceof Error)) {
+    return false;
+  }
+  const message = error.message.toLowerCase();
+  return (
+    message.includes("invalid content detected") ||
+    message.includes("flagged and rejected") ||
+    message.includes("content moderation")
+  );
+}
+
 function buildFluxDirectorPrompt(input: {
   pageIndex: number;
   pageCount: number;
   bookTitle: string;
   paragraph: string;
   continuityBrief: string;
+  characterAnchorBrief: string;
   visualStyle: string;
   readingLevel: string;
   tone: string;
 }): string {
+  const pageNumber = input.pageIndex + 1;
+  const safeParagraph = simplifySceneNarrative(input.paragraph);
+  const safeContinuity = sanitizeForImagePrompt(input.continuityBrief).slice(0, 900);
+
   return [
-    "DIRECTOR PROMPT FOR FLUX.2-PRO",
-    `Target: storybook page ${input.pageIndex + 1} of ${input.pageCount}`,
-    `Book title: ${input.bookTitle}`,
+    "ROLE: You are an art director generating one picture-book illustration for FLUX.2-pro.",
+    `DELIVERABLE: Page ${pageNumber}/${input.pageCount} for the book \"${input.bookTitle}\".`,
+    "PRIORITY ORDER: Safety constraints > continuity > scene accuracy > visual beauty.",
     "",
-    "SCENE BRIEF",
-    input.paragraph,
+    "SCENE INPUT",
+    `Page narrative: ${safeParagraph}`,
     "",
-    "STORY CONTINUITY",
-    input.continuityBrief,
+    "GLOBAL CONTINUITY CONTEXT",
+    safeContinuity,
     "",
-    "STYLE DIRECTION",
-    `Visual style: ${input.visualStyle}`,
-    `Reading level: ${input.readingLevel}`,
-    `Tone: ${input.tone}`,
+    "ART DIRECTION",
+    `Style mode: ${input.visualStyle}`,
+    `Audience reading level: ${input.readingLevel}`,
+    `Story tone: ${input.tone}`,
+    "Color and lighting should support tone while staying friendly and readable for children.",
     "",
-    "COMPOSITION",
-    "Full-page children's picture-book illustration.",
-    "Cinematic depth with foreground, middle ground, and background.",
-    "Clear focal subject with readable silhouettes and expressive body language.",
-    "Consistent lighting and art direction with adjacent pages.",
+    "SHOT DESIGN",
+    "Use a full-page portrait composition suitable for a 3:4 picture-book page.",
+    "Establish depth with foreground, midground, and background layers.",
+    "Keep one clear focal action with strong silhouettes and expressive posing.",
+    "Add environmental details that reinforce the scene action without clutter.",
     "",
-    "CHARACTER CONTINUITY RULES",
-    "Preserve the same core protagonists and visual traits across pages.",
-    "Do not replace established protagonist types (for example, talking vehicles must remain talking vehicles).",
-    "If this paragraph highlights location/action, keep established protagonists visibly present unless explicitly absent.",
+    "CONTINUITY RULES",
+    input.characterAnchorBrief,
+    "Maintain the same protagonist identities, proportions, species/type, palette accents, and signature traits.",
+    "Never swap protagonist type (for example: a talking vehicle remains a talking vehicle).",
+    "If this page is action or travel focused, keep established protagonists visibly present unless the narrative explicitly removes them.",
+    "Preserve world logic, setting materials, and recurring props from prior context.",
     "",
-    "STRICT EXCLUSIONS",
-    "No text, letters, words, numbers, captions, speech bubbles, signs, logos, labels, UI, or watermarks.",
-    "Do not place the story title or any written typography anywhere on the page.",
-    "If text-bearing objects appear, keep them blank, abstract, or illegible.",
+    "ABSOLUTE EXCLUSIONS",
+    "No readable text in the image under any condition.",
+    "Do not render letters, words, numbers, captions, signs, logos, labels, UI elements, speech bubbles, or watermarks.",
+    "Do not include title text or typography anywhere on the page.",
+    "If text-bearing objects appear, keep text areas blank, abstract, or unreadable.",
+    "Avoid split panels, comic gutters, and collage layouts unless explicitly requested.",
+  ].join("\n");
+}
+
+function buildSafeFallbackPrompt(input: {
+  pageIndex: number;
+  pageCount: number;
+  paragraph: string;
+  characterAnchorBrief: string;
+  visualStyle: string;
+}): string {
+  const pageNumber = input.pageIndex + 1;
+  const simpleScene = simplifySceneNarrative(input.paragraph);
+
+  return [
+    "Create a gentle children's picture-book illustration.",
+    `Page ${pageNumber} of ${input.pageCount}.`,
+    `Scene summary: ${simpleScene}`,
+    `Style: ${input.visualStyle}.`,
+    input.characterAnchorBrief,
+    "Single clear focal subject, simple background, warm lighting, calm mood.",
+    "No violence, no weapons, no politics, no suggestive content, no real public figures.",
+    "No readable text in the image.",
   ].join("\n");
 }
 
@@ -195,6 +323,7 @@ export async function runPipeline(job: JobRecord, audioBuffer?: Buffer): Promise
     cleanTranscript: cleanTranscript.text,
     paragraphs,
   });
+  const characterAnchorBrief = buildCharacterAnchorBrief(paragraphs[0] ?? cleanTranscript.text);
 
   const pages: Array<{
     index: number;
@@ -213,17 +342,47 @@ export async function runPipeline(job: JobRecord, audioBuffer?: Buffer): Promise
       bookTitle,
       paragraph,
       continuityBrief,
+      characterAnchorBrief,
       visualStyle: labelFilter("visualStyle", job.filters.visualStyle),
       readingLevel: labelFilter("readingLevel", job.filters.readingLevel),
       tone: labelFilter("tone", job.filters.tone),
     });
 
     const imagePrompt = buildNoTextPrompt(baseImagePrompt);
+    let usedPrompt = imagePrompt;
+    let illustration;
 
-    const illustration = await generateIllustrationFromPrompt({
-      prompt: imagePrompt,
-      aspectRatio: "3:4",
-    });
+    try {
+      illustration = await generateIllustrationFromPrompt({
+        prompt: imagePrompt,
+        aspectRatio: "3:4",
+      });
+    } catch (error) {
+      if (!isModerationError(error)) {
+        throw error;
+      }
+
+      console.warn("[pipeline][page][moderation-retry]", id, {
+        page: index + 1,
+        reason: error instanceof Error ? error.message : String(error),
+      });
+
+      const fallbackPrompt = buildNoTextPrompt(
+        buildSafeFallbackPrompt({
+          pageIndex: index,
+          pageCount: paragraphs.length,
+          paragraph,
+          characterAnchorBrief,
+          visualStyle: labelFilter("visualStyle", job.filters.visualStyle),
+        })
+      );
+
+      usedPrompt = fallbackPrompt;
+      illustration = await generateIllustrationFromPrompt({
+        prompt: fallbackPrompt,
+        aspectRatio: "3:4",
+      });
+    }
 
     pages.push({
       index,
@@ -232,7 +391,7 @@ export async function runPipeline(job: JobRecord, audioBuffer?: Buffer): Promise
       imageMimeType: illustration.mimeType,
       imageProvider: illustration.provider,
       imageModel: illustration.model,
-      imagePrompt,
+      imagePrompt: usedPrompt,
     });
     console.log("[pipeline][page]", id, {
       page: index + 1,
