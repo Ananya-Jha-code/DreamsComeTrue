@@ -140,8 +140,7 @@ export default function LandingPage() {
         {/* ── HOW IT WORKS ── */}
         <section className="ll-section ll-how">
           <div className="ll-container">
-            <p className="ll-label ll-reveal">The Ritual</p>
-            <h2 className="ll-h2 ll-reveal">Speak. We'll <em>handle</em><br />the rest.</h2>
+            <h2 className="ll-h2 ll-reveal">Speak. We'll <em>handle</em> the rest.</h2>
             <div className="ll-steps">
               {[
                 {n:"I",   title:"Set the scene",   desc:"Choose your visual style and reading level. Sensible defaults are ready."},
@@ -165,7 +164,6 @@ export default function LandingPage() {
         <section className="ll-wc-section">
           <div className="ll-container">
             <div style={{textAlign:"center",marginBottom:"3.5rem"}}>
-              <p className="ll-label ll-reveal">Visual Styles</p>
               <h2 className="ll-h2 ll-reveal" style={{textAlign:"center",marginBottom:".75rem",fontStyle:"normal"}}>Your story, painted many ways.</h2>
             </div>
             <div className="ll-wc-grid ll-reveal">
@@ -192,11 +190,10 @@ export default function LandingPage() {
         {/* ── QUOTE + STATS ── */}
         <section className="ll-quote-section">
           <p className="ll-big-quote ll-reveal">"A story doesn't have <em>one correct form</em>.<br />Every dream deserves its own shape."</p>
-          <p className="ll-quote-attr ll-reveal">Product Philosophy</p>
-          <div className="ll-stat-row ll-reveal">
-            <div className="ll-stat"><span className="ll-stat-num">2,160</span><span className="ll-stat-label">Unique picture book combinations<br />from one spoken story</span></div>
+            <div className="ll-stat-row ll-reveal">
+            <div className="ll-stat"><span className="ll-stat-num">120</span><span className="ll-stat-label">Unique picture book combinations<br />from one spoken story</span></div>
             <div className="ll-stat"><span className="ll-stat-num">&lt;90s</span><span className="ll-stat-label">From spoken words<br />to finished book</span></div>
-            <div className="ll-stat"><span className="ll-stat-num">5</span><span className="ll-stat-label">Independent filter axes<br />you control</span></div>
+            <div className="ll-stat"><span className="ll-stat-num">3</span><span className="ll-stat-label">Independent filters<br />you control</span></div>
           </div>
         </section>
 
@@ -205,7 +202,6 @@ export default function LandingPage() {
         {/* ── FILTER MATRIX ── */}
         <section className="ll-section">
           <div className="ll-container">
-            <p className="ll-label ll-reveal">The Dream Matrix</p>
             <h2 className="ll-h2 ll-reveal">Your dream,<br /><em>your way.</em></h2>
             <div className="ll-filters-grid ll-reveal">
               {[
@@ -277,7 +273,7 @@ body{cursor:none!important;margin:0;}
 .ll-tagline{font-family:'Cormorant Garamond',serif;font-size:clamp(1.6rem,4vw,2.8rem);font-weight:300;line-height:1.2;color:rgba(232,223,208,.8);margin:0;opacity:0;animation:ll-up 1s ease .6s forwards;}
 .ll-tagline-gold{font-style:italic;background:linear-gradient(90deg,#f5d78a,#c9a84c,#f5d78a);background-size:200% auto;-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;animation:ll-up 1s ease .7s forwards, ll-shimmer 4s linear 1.7s infinite;margin-bottom:1.5rem;}
 
-.ll-sub{font-family:'Instrument Sans',sans-serif;font-size:clamp(.9rem,1.8vw,1.1rem);letter-spacing:.06em;color:rgba(232,223,208,.35);max-width:420px;line-height:1.7;margin-bottom:3rem;opacity:0;animation:ll-up 1s ease .9s forwards;}
+.ll-sub{font-family:'Instrument Sans',sans-serif;font-size:clamp(1rem,2vw,1.2rem);letter-spacing:.06em;color:rgba(232,223,208,.35);max-width:480px;line-height:1.75;margin-bottom:3rem;opacity:0;animation:ll-up 1s ease .9s forwards;}
 
 .ll-btn{display:inline-flex;align-items:center;gap:.75rem;padding:1.1rem 2.8rem;border:1px solid rgba(201,168,76,.5);border-radius:100px;font-family:'Instrument Sans',sans-serif;font-size:.85rem;letter-spacing:.16em;text-transform:uppercase;color:#e8dfd0;background:transparent;cursor:none;transition:all .4s ease;position:relative;overflow:hidden;opacity:0;animation:ll-up 1s ease 1.1s forwards;}
 .ll-btn::before{content:'';position:absolute;inset:0;background:linear-gradient(135deg,#c9a84c,#e8b84b);transform:scaleX(0);transform-origin:left;transition:transform .4s ease;z-index:-1;}
@@ -292,7 +288,7 @@ body{cursor:none!important;margin:0;}
 .ll-section{position:relative;z-index:1;padding:8rem 2rem;}
 .ll-container{max-width:1140px;margin:0 auto;}
 .ll-label{font-size:.62rem;letter-spacing:.35em;text-transform:uppercase;color:#c9a84c;margin-bottom:1rem;}
-.ll-h2{font-family:'Cormorant Garamond',serif;font-size:clamp(2.8rem,7vw,5.5rem);font-weight:400;line-height:1.0;color:#e8dfd0;margin-bottom:4rem;}
+.ll-h2{font-family:'Cormorant Garamond',serif;font-size:clamp(2.8rem,7vw,5.5rem);font-weight:400;line-height:1.08;color:#e8dfd0;margin-bottom:4rem;}
 .ll-h2 em{font-style:italic;color:#c9a84c;}
 .ll-how{background:linear-gradient(to bottom,transparent,rgba(26,39,68,.35),transparent);}
 .ll-divider{height:1px;background:linear-gradient(to right,transparent,rgba(201,168,76,.2),transparent);margin:0 2rem;}
@@ -301,9 +297,9 @@ body{cursor:none!important;margin:0;}
 .ll-steps{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));position:relative;}
 .ll-steps::before{content:'';position:absolute;top:28px;left:8%;right:8%;height:1px;background:linear-gradient(to right,transparent,rgba(201,168,76,.22),transparent);}
 .ll-step{padding:0 2rem 0 0;}
-.ll-step-num{width:56px;height:56px;border:1px solid rgba(201,168,76,.35);border-radius:50%;display:flex;align-items:center;justify-content:center;font-family:'Cormorant Garamond',serif;font-size:1.2rem;color:#c9a84c;margin-bottom:1.5rem;background:#070c17;position:relative;z-index:1;}
-.ll-step-title{font-family:'Cormorant Garamond',serif;font-size:1.3rem;color:#e8dfd0;margin-bottom:.6rem;}
-.ll-step-desc{font-size:.83rem;line-height:1.8;color:rgba(232,223,208,.4);}
+.ll-step-num{width:64px;height:64px;border:1px solid rgba(201,168,76,.35);border-radius:50%;display:flex;align-items:center;justify-content:center;font-family:'Cormorant Garamond',serif;font-size:1.4rem;color:#c9a84c;margin-bottom:1.65rem;background:#070c17;position:relative;z-index:1;}
+.ll-step-title{font-family:'Cormorant Garamond',serif;font-size:1.55rem;color:#e8dfd0;margin-bottom:.75rem;line-height:1.15;}
+.ll-step-desc{font-size:.95rem;line-height:1.8;color:rgba(232,223,208,.5);}
 
 /* WATERCOLOR SECTION */
 .ll-wc-section{padding:8rem 2rem;position:relative;z-index:1;}
@@ -314,8 +310,8 @@ body{cursor:none!important;margin:0;}
 .ll-wc-card::before{content:'';position:absolute;inset:0;background:radial-gradient(circle at 70% 30%,var(--card-bg) 0%,transparent 70%);opacity:.5;pointer-events:none;}
 .ll-wc-card:hover{transform:translateY(-6px) scale(1.02);box-shadow:0 20px 60px rgba(0,0,0,.4);}
 .ll-wc-emoji{font-size:2.5rem;margin-bottom:1rem;display:block;filter:drop-shadow(0 4px 12px rgba(0,0,0,.4));}
-.ll-wc-name{font-family:'Cormorant Garamond',serif;font-size:1.3rem;font-weight:400;color:#e8dfd0;margin-bottom:.4rem;}
-.ll-wc-desc{font-size:.78rem;color:rgba(232,223,208,.45);letter-spacing:.04em;}
+.ll-wc-name{font-family:'Cormorant Garamond',serif;font-size:1.65rem;font-weight:500;color:#e8dfd0;margin-bottom:.55rem;line-height:1.15;}
+.ll-wc-desc{font-size:.92rem;color:rgba(232,223,208,.55);letter-spacing:.035em;line-height:1.45;}
 
 /* QUOTE */
 .ll-quote-section{text-align:center;padding:7rem 2rem;}
