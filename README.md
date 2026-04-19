@@ -5,7 +5,7 @@
 [![HackPrinceton Spring 2026](https://img.shields.io/badge/HackPrinceton-Spring%202026-gold?style=flat-square)](https://hackprinceton.com)
 [![Built in 36 Hours](https://img.shields.io/badge/Built%20in-36%20Hours-blueviolet?style=flat-square)](https://github.com/Ananya-Jha-code/DreamsComeTrue)
 [![K2 Think v2](https://img.shields.io/badge/Powered%20by-K2%20Think%20v2-orange?style=flat-square)](https://k2think.ai)
-[![FLUX.2-pro](https://img.shields.io/badge/Images-FLUX.2--pro-blue?style=flat-square)](https://together.ai)
+[![Gemini 2.5 Flash](https://img.shields.io/badge/Images-Gemini%202.5%20Flash-blue?style=flat-square)](https://deepmind.google/gemini)
 [![ElevenLabs](https://img.shields.io/badge/Voice-ElevenLabs%20Scribe%20v2-yellow?style=flat-square)](https://elevenlabs.io)
 
 ---
@@ -35,7 +35,7 @@ DreamsComeTrue is a real-time AI pipeline that turns a single voice recording in
        Bakes in your chosen style, tone & reading level
           │
           ▼
-  🎨  FLUX.2-pro  (one illustration per paragraph)
+  🎨  Gemini 2.5 Flash  (one illustration per paragraph)
        Director-prompted per page
        Character continuity enforced across all spreads
        Aspect-locked 3:4 picture-book format
@@ -103,13 +103,13 @@ Before you record, you pick three things:
 
 **6 × 4 × 5 = 120 distinct picture books from one spoken story.**
 
-These aren't cosmetic filters. They flow into K2 (which adjusts prose structure and vocabulary) and into FLUX (which shifts the illustrated aesthetic). The same bedtime story becomes a brooding charcoal mystery at grade-school level, or a warm crayon adventure for toddlers — genuinely different books.
+These aren't cosmetic filters. They flow into K2 (which adjusts prose structure and vocabulary) and into Gemini (which shifts the illustrated aesthetic). The same bedtime story becomes a brooding charcoal mystery at grade-school level, or a warm crayon adventure for toddlers — genuinely different books.
 
 ---
 
-## Director Prompts — How We Talk to FLUX
+## Director Prompts — How We Talk to Gemini
 
-FLUX.2-pro is an image model, not a story model. Getting it to paint *continuous characters* across *multiple pages* required treating each generation like a film production brief:
+Gemini 2.5 Flash is a powerful model, but getting it to paint *continuous characters* across *multiple pages* required treating each generation like a film production brief:
 
 ```
 [DIRECTOR PROMPT — Page 2 of 4]
@@ -153,7 +153,7 @@ Every page gets the full story context. The result: illustrations that feel like
                                         │    → K2 Think v2           │
                                         │                            │
                                         │  /v1/illustration          │
-                                        │    → FLUX.2-pro            │
+                                        │    → Gemini 2.5 Flash      │
                                         └────────────────────────────┘
 ```
 
@@ -174,7 +174,7 @@ The backend returns a `202` immediately and runs the pipeline in the background.
 | ML Service | FastAPI · Python · httpx |
 | Transcription | ElevenLabs Scribe v2 |
 | Story Authoring | **K2 Think v2** (MBZUAI-IFM) |
-| Illustration | FLUX.2-pro via Together AI |
+| Illustration | **Gemini 2.5 Flash** (Google DeepMind) |
 
 ---
 
@@ -182,7 +182,7 @@ The backend returns a `202` immediately and runs the pipeline in the background.
 
 ### Prerequisites
 - Node.js 20+, Python 3.11+
-- API keys: ElevenLabs, Together AI, K2 Think
+- API keys: ElevenLabs, Google AI (Gemini), K2 Think
 
 ### ML Service
 ```bash
@@ -214,11 +214,10 @@ Open `http://localhost:5173`. Pick a style. Tell a story.
 **`ml-service/.env`**
 ```env
 ELEVENLABS_API_KEY=
-TOGETHER_API_KEY=
+GOOGLE_AI_API_KEY=
 K2THINK_API_KEY=
 ML_SERVICE_TOKEN=
 K2_TEMPERATURE=0.3
-FLUX_MODEL=black-forest-labs/FLUX.2-pro
 ```
 
 **`backend/.env`**
