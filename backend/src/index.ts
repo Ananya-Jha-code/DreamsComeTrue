@@ -12,9 +12,14 @@ dotenv.config({ path: path.resolve(__dirname, "../../.env") });
 const app = express();
 const PORT = Number(process.env.PORT) || 3001;
 const frontendOrigin = process.env.FRONTEND_ORIGIN ?? "http://localhost:5173";
+
+function normalizeOrigin(value: string): string {
+  return value.trim().replace(/\/+$/, "");
+}
+
 const allowedOrigins = frontendOrigin
   .split(",")
-  .map((origin) => origin.trim())
+  .map(normalizeOrigin)
   .filter(Boolean);
 
 app.use(
@@ -26,7 +31,7 @@ app.use(
         return;
       }
 
-      if (allowedOrigins.includes(origin)) {
+      if (allowedOrigins.includes(normalizeOrigin(origin))) {
         callback(null, true);
         return;
       }
