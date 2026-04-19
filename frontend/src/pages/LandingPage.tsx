@@ -125,7 +125,7 @@ export default function LandingPage() {
         <section className="ll-hero">
           <ThreeMoon />
           <p className="ll-eyebrow">HackPrinceton 2026</p>
-          <h1 className="ll-title"><em>Lullaby</em></h1>
+          <h1 className="ll-title"><em>DreamsComeTrue</em></h1>
           <p className="ll-tagline">Tell a story.</p>
           <p className="ll-tagline ll-tagline-gold">Watch it become a picture book.</p>
           <p className="ll-sub">Speak once. Choose your style. We turn it into illustrated pages.</p>
@@ -144,10 +144,10 @@ export default function LandingPage() {
             <h2 className="ll-h2 ll-reveal">Speak. We'll <em>handle</em><br />the rest.</h2>
             <div className="ll-steps">
               {[
-                {n:"I",   title:"Set the scene",   desc:"Choose visual style, reading level, and tone. Sensible defaults are ready."},
+                {n:"I",   title:"Set the scene",   desc:"Choose your visual style and reading level. Sensible defaults are ready."},
                 {n:"II",  title:"Tell your story",  desc:"Speak naturally. Pause. Wander. We transcribe, clean artifacts, and find the story inside your words."},
                 {n:"III", title:"Watch it weave",   desc:"Your words transform into page art — sketches bloom, spreads paint themselves."},
-                {n:"IV",  title:"Storybook finish",  desc:"A fully illustrated book with one page per story beat — your words, page by page."},
+                {n:"IV",  title:"Storybook finish",  desc:"A fully narrated illustrated book. AI voice, AI visuals, and page-by-page pacing."},
               ].map(s => (
                 <div className="ll-step ll-reveal" key={s.n}>
                   <div className="ll-step-num">{s.n}</div>
@@ -164,8 +164,10 @@ export default function LandingPage() {
         {/* ── WATERCOLOR SHOWCASE ── */}
         <section className="ll-wc-section">
           <div className="ll-container">
-            <p className="ll-label ll-reveal" style={{textAlign:"center"}}>Visual Styles</p>
-            <h2 className="ll-h2 ll-reveal" style={{textAlign:"center",marginBottom:"3rem"}}>Your story, <em>painted</em><br />six ways.</h2>
+            <div style={{textAlign:"center",marginBottom:"3.5rem"}}>
+              <p className="ll-label ll-reveal">Visual Styles</p>
+              <h2 className="ll-h2 ll-reveal" style={{textAlign:"center",marginBottom:".75rem",fontStyle:"normal"}}>Your story, painted many ways.</h2>
+            </div>
             <div className="ll-wc-grid ll-reveal">
               {[
                 {name:"Watercolor Storybook", emoji:"🎨", color:"from-rose-400 to-amber-300",   bg:"rgba(251,113,133,0.12)", border:"rgba(251,113,133,0.35)", desc:"Soft Beatrix Potter warmth"},
@@ -189,12 +191,12 @@ export default function LandingPage() {
 
         {/* ── QUOTE + STATS ── */}
         <section className="ll-quote-section">
-          <p className="ll-big-quote ll-reveal">"A story doesn't have <em>one correct form</em>.<br />Lullaby makes that literal."</p>
+          <p className="ll-big-quote ll-reveal">"A story doesn't have <em>one correct form</em>.<br />Every dream deserves its own shape."</p>
           <p className="ll-quote-attr ll-reveal">Product Philosophy</p>
-            <div className="ll-stat-row ll-reveal">
-            <div className="ll-stat"><span className="ll-stat-num">120</span><span className="ll-stat-label">Unique picture book combinations<br />from one spoken story</span></div>
+          <div className="ll-stat-row ll-reveal">
+            <div className="ll-stat"><span className="ll-stat-num">2,160</span><span className="ll-stat-label">Unique picture book combinations<br />from one spoken story</span></div>
             <div className="ll-stat"><span className="ll-stat-num">&lt;90s</span><span className="ll-stat-label">From spoken words<br />to finished book</span></div>
-            <div className="ll-stat"><span className="ll-stat-num">3</span><span className="ll-stat-label">Independent filter axes<br />you control</span></div>
+            <div className="ll-stat"><span className="ll-stat-num">5</span><span className="ll-stat-label">Independent filter axes<br />you control</span></div>
           </div>
         </section>
 
@@ -203,13 +205,12 @@ export default function LandingPage() {
         {/* ── FILTER MATRIX ── */}
         <section className="ll-section">
           <div className="ll-container">
-            <p className="ll-label ll-reveal">The Filter Matrix</p>
-            <h2 className="ll-h2 ll-reveal">Same story.<br /><em>Infinite</em> books.</h2>
+            <p className="ll-label ll-reveal">The Dream Matrix</p>
+            <h2 className="ll-h2 ll-reveal">Your dream,<br /><em>your way.</em></h2>
             <div className="ll-filters-grid ll-reveal">
               {[
                 {axis:"Axis I",   name:"Visual Style",  count:"6",   pills:["Watercolor Storybook","Pixar / 3D","Studio Ghibli","Paper Cutout","Charcoal Sketch","Crayon Drawing"], active:0},
-                {axis:"Axis II", name:"Reading Level",  count:"4",   pills:["Toddler (2–3)","Early Reader (4–6)","Grade School (7–10)","Advanced (11+)"], active:1},
-                {axis:"Axis III",name:"Tone",            count:"5",   pills:["Cozy","Adventurous","Whimsical","Mysterious","Tender"], active:0},
+                {axis:"Axis II",  name:"Reading Level",  count:"4",   pills:["Toddler (2–3)","Early Reader (4–6)","Grade School (7–10)","Advanced (11+)"], active:1},
               ].map(fc => (
                 <div className="ll-filter-card" key={fc.name}>
                   <div className="ll-filter-axis">{fc.axis}</div>
@@ -227,7 +228,7 @@ export default function LandingPage() {
         {/* ── FINAL CTA ── */}
         <section className="ll-final">
           <div style={{width:180,height:180,background:"radial-gradient(circle at 36% 36%,#f5e8c8,#c9a84c 58%,#7a5a18)",borderRadius:"50%",margin:"0 auto 4rem",boxShadow:"0 0 80px rgba(201,168,76,.25),0 0 200px rgba(100,130,220,.08)",animation:"ll-float 6s ease-in-out infinite"}} />
-          <p className="ll-final-title ll-reveal">Every story exists<br />in many simultaneous versions.</p>
+          <p className="ll-final-title ll-reveal">Your story is waiting.<br />Let us bring it to life.</p>
           <button className="ll-btn ll-reveal" style={{animationDelay:".1s"}} onClick={() => nav("/picker")}
             onMouseEnter={() => ringRef.current?.classList.add("ll-ring-big")}
             onMouseLeave={() => ringRef.current?.classList.remove("ll-ring-big")}>
@@ -236,7 +237,7 @@ export default function LandingPage() {
         </section>
 
         <footer className="ll-footer">
-          <span className="ll-footer-logo">Lullaby</span>
+          <span className="ll-footer-logo">DreamsComeTrue</span>
           <span>HackPrinceton 2026 — Entertainment & Media</span>
           <span>Built in 36 hours</span>
         </footer>
@@ -269,7 +270,7 @@ body{cursor:none!important;margin:0;}
 .ll-eyebrow{font-size:.72rem;letter-spacing:.32em;text-transform:uppercase;color:#c9a84c;margin-bottom:1.2rem;opacity:0;animation:ll-up 1s ease .2s forwards;}
 
 /* BIGGER TITLE */
-.ll-title{font-family:'Cormorant Garamond',serif;font-size:clamp(6rem,18vw,14rem);font-weight:600;line-height:.85;letter-spacing:-.03em;color:#e8dfd0;margin:0 0 .5rem;opacity:0;animation:ll-up 1s ease .4s forwards;}
+.ll-title{font-family:'Cormorant Garamond',serif;font-size:clamp(2.8rem,8vw,7rem);font-weight:600;line-height:.95;letter-spacing:-.02em;color:#e8dfd0;margin:0 0 .5rem;opacity:0;animation:ll-up 1s ease .4s forwards;}
 .ll-title em{font-style:italic;background:linear-gradient(135deg,#f5d78a,#c9a84c,#e8b84b);-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;}
 
 /* TWO-LINE TAGLINE — bigger, bolder */
@@ -307,7 +308,8 @@ body{cursor:none!important;margin:0;}
 /* WATERCOLOR SECTION */
 .ll-wc-section{padding:8rem 2rem;position:relative;z-index:1;}
 .ll-wc-section::before{content:'';position:absolute;inset:0;background:radial-gradient(ellipse at 50% 50%,rgba(201,168,76,.04) 0%,transparent 70%);pointer-events:none;}
-.ll-wc-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(260px,1fr));gap:1.25rem;margin-top:0;}
+.ll-wc-subhead{font-family:'Cormorant Garamond',serif;font-size:clamp(1rem,2vw,1.4rem);font-style:italic;color:rgba(232,223,208,.38);letter-spacing:.08em;margin:0 auto 0;text-align:center;}
+.ll-wc-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:1.25rem;margin-top:0;max-width:900px;margin-left:auto;margin-right:auto;}
 .ll-wc-card{background:var(--card-bg);border:1px solid var(--card-border);border-radius:20px;padding:2rem;position:relative;overflow:hidden;transition:transform .35s ease,box-shadow .35s ease;cursor:none;}
 .ll-wc-card::before{content:'';position:absolute;inset:0;background:radial-gradient(circle at 70% 30%,var(--card-bg) 0%,transparent 70%);opacity:.5;pointer-events:none;}
 .ll-wc-card:hover{transform:translateY(-6px) scale(1.02);box-shadow:0 20px 60px rgba(0,0,0,.4);}
@@ -343,5 +345,5 @@ body{cursor:none!important;margin:0;}
 .ll-final-title{font-family:'Cormorant Garamond',serif;font-size:clamp(2.2rem,5.5vw,4rem);font-weight:300;font-style:italic;color:rgba(232,223,208,.78);margin-bottom:3rem;}
 .ll-footer{border-top:1px solid rgba(232,223,208,.05);padding:2.5rem;display:flex;justify-content:space-between;align-items:center;font-size:.7rem;color:rgba(232,223,208,.16);letter-spacing:.08em;position:relative;z-index:1;}
 .ll-footer-logo{font-family:'Cormorant Garamond',serif;font-size:1.15rem;font-weight:300;color:rgba(232,223,208,.32);}
-@media(max-width:640px){.ll-steps{grid-template-columns:1fr 1fr;gap:2rem}.ll-steps::before{display:none}.ll-filters-grid{grid-template-columns:1fr}.ll-stat-row{flex-direction:column}.ll-footer{flex-direction:column;gap:1rem;text-align:center}.ll-wc-grid{grid-template-columns:1fr 1fr}}
+@media(max-width:640px){.ll-steps{grid-template-columns:1fr 1fr;gap:2rem}.ll-steps::before{display:none}.ll-filters-grid{grid-template-columns:1fr}.ll-stat-row{flex-direction:column}.ll-footer{flex-direction:column;gap:1rem;text-align:center}.ll-wc-grid{grid-template-columns:1fr}}
 `;
