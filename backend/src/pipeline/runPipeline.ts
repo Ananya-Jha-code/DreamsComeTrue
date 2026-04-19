@@ -29,11 +29,24 @@ export async function runPipeline(job: JobRecord, audioBuffer?: Buffer): Promise
   });
   const languageTag = transcript.language ?? null;
 
+  console.log("[pipeline][stt]", id, {
+    provider: transcript.provider,
+    language: languageTag,
+    text: transcript.text,
+    words: transcript.words,
+  });
+
   setStage(id, "cleaning");
   const cleanTranscript = await cleanupTranscript({
     transcript: transcript.text,
     language: languageTag,
     filters: job.filters,
+  });
+
+  console.log("[pipeline][cleanup]", id, {
+    provider: cleanTranscript.provider,
+    cleanTranscript: cleanTranscript.text,
+    directorPrompt: cleanTranscript.directorPrompt,
   });
 
   setStage(id, "planning");
@@ -42,6 +55,14 @@ export async function runPipeline(job: JobRecord, audioBuffer?: Buffer): Promise
     filters: job.filters,
     language: cleanTranscript.language ?? languageTag,
     directorPrompt: cleanTranscript.directorPrompt,
+  });
+
+  console.log("[pipeline][plan]", id, {
+    provider: scenePlan.provider,
+    scenePrompts: scenePlan.scenes.map((scene) => ({
+      id: scene.id,
+      prompt: scene.prompt,
+    })),
   });
 
   setStage(id, "rewriting");
