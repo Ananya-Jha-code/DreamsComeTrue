@@ -8,6 +8,7 @@ export type JobStage =
   | "rewriting"
   | "generating_images"
   | "generating_audio"
+  | "generating_video"
   | "assembling"
   | "ready"
   | "failed";

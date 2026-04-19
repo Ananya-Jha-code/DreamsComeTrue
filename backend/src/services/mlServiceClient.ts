@@ -112,3 +112,12 @@ export async function generateAmbientAudio(input: {
   return mlPost("/v1/audio/ambient", input);
 }
 
+export async function generateVideo(input: {
+  directorPrompt: string;
+  scenes: SceneDescriptor[];
+  script: string;
+  filters: StoryFilters;
+}): Promise<{ videoBase64: string; provider: string }> {
+  return mlPost("/v1/video", input);
+}
+

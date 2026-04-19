@@ -327,6 +327,12 @@ export default function RecordPage() {
                 <p style={{margin:0,fontSize:".85rem",lineHeight:1.6,color:"rgba(232,223,208,.92)"}}>{jobResult.directorPrompt}</p>
               </div>
             )}
+            {jobResult?.videoUrl && (
+              <div style={{marginTop:"1rem"}}>
+                <p style={{margin:"0 0 .35rem",fontSize:".7rem",letterSpacing:".1em",textTransform:"uppercase",color:"rgba(232,223,208,.5)"}}>Generated movie</p>
+                <video controls src={jobResult.videoUrl} style={{width:"100%",borderRadius:10,border:"1px solid rgba(201,168,76,.2)",background:"#000"}} />
+              </div>
+            )}
           </div>
         )}
 

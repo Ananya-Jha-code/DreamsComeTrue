@@ -1,7 +1,10 @@
 from __future__ import annotations
 
 import base64
+import io
+import math
 import os
+import wave
 from pathlib import Path
 from typing import Any, Literal
 
@@ -146,6 +149,58 @@ def _language_from_elevenlabs(payload: dict) -> str | None:
     return None
 
 
+def _google_api_key() -> str:
+    key = (
+        os.getenv("GOOGLE_TTS_API_KEY", "").strip()
+        or os.getenv("GOOGLE_API_KEY", "").strip()
+        or os.getenv("GEMINI_API_KEY", "").strip()
+    )
+    if not key:
+        raise HTTPException(
+            status_code=500,
+            detail="Missing Google key. Set GOOGLE_TTS_API_KEY or GOOGLE_API_KEY (or GEMINI_API_KEY).",
+        )
+    return key
+
+
+def _tts_voice_for_filter(narrator_voice: str) -> str:
+    mapping = {
+        "warm_mother": "en-US-Chirp3-HD-Achird",
+        "wise_grandfather": "en-US-Chirp3-HD-Autonoe",
+        "playful_sister": "en-US-Chirp3-HD-Leda",
+        "gentle_father": "en-US-Chirp3-HD-Sadachbia",
+        "mysterious_narrator": "en-US-Chirp3-HD-Callirrhoe",
+        "kid_narrator": "en-US-Chirp3-HD-Rasalgethi",
+    }
+    return mapping.get(narrator_voice, "en-US-Chirp3-HD-Achird")
+
+
+def _local_fallback_tts_base64(duration_seconds: float = 8.0, sample_rate: int = 24000) -> str:
+    """Generate a minimal WAV fallback so pipeline can continue when cloud TTS is unavailable."""
+    total_samples = max(1, int(duration_seconds * sample_rate))
+    amplitude = 0.11
+
+    with io.BytesIO() as buff:
+        with wave.open(buff, "wb") as wav_out:
+            wav_out.setnchannels(1)
+            wav_out.setsampwidth(2)
+            wav_out.setframerate(sample_rate)
+
+            frames = bytearray()
+            for i in range(total_samples):
+                t = i / sample_rate
+                sample = (
+                    math.sin(2.0 * math.pi * 220.0 * t)
+                    + 0.5 * math.sin(2.0 * math.pi * 330.0 * t)
+                )
+                value = int(max(-1.0, min(1.0, sample * amplitude)) * 32767)
+                frames.extend(value.to_bytes(2, byteorder="little", signed=True))
+
+            wav_out.writeframes(bytes(frames))
+
+        return base64.b64encode(buff.getvalue()).decode("ascii")
+
+
 @app.post("/v1/transcribe")
 def transcribe(req: TranscribeRequest, x_ml_token: str | None = Header(default=None)) -> dict:
     _check_token(x_ml_token)
@@ -260,9 +315,45 @@ def images(req: ImagesRequest, x_ml_token: str | None = Header(default=None)) ->
 @app.post("/v1/audio/narration")
 def narration(req: AudioNarrationRequest, x_ml_token: str | None = Header(default=None)) -> dict:
     _check_token(x_ml_token)
+    allow_fallback = os.getenv("ALLOW_TTS_FALLBACK", "1").strip().lower() in ("1", "true", "yes")
+    api_key = _google_api_key()
+    voice_name = _tts_voice_for_filter(req.filters.narratorVoice)
+    tts_url = f"https://texttospeech.googleapis.com/v1/text:synthesize?key={api_key}"
+    payload = {
+        "input": {"text": req.script},
+        "voice": {"languageCode": "en-US", "name": voice_name},
+        "audioConfig": {"audioEncoding": "MP3", "speakingRate": 0.9},
+    }
+
+    with httpx.Client(timeout=120.0) as client:
+        response = client.post(tts_url, json=payload)
+
+    if response.status_code >= 400:
+        if allow_fallback and response.status_code == 403 and "SERVICE_DISABLED" in response.text:
+            return {
+                "provider": "local-fallback-tts",
+                "audioBase64": _local_fallback_tts_base64(),
+                "warning": "Google TTS API disabled; using local fallback narration audio.",
+            }
+        raise HTTPException(
+            status_code=502,
+            detail=f"Google TTS failed ({response.status_code}): {response.text[:2000]}",
+        )
+
+    data = response.json()
+    audio = data.get("audioContent")
+    if not isinstance(audio, str) or not audio.strip():
+        if allow_fallback:
+            return {
+                "provider": "local-fallback-tts",
+                "audioBase64": _local_fallback_tts_base64(),
+                "warning": "Google TTS returned no audioContent; using local fallback narration audio.",
+            }
+        raise HTTPException(status_code=502, detail="Google TTS returned no audioContent.")
+
     return {
-        "provider": "gemini-2.5-native-multimodal-audio",
-        "audioBase64": "U1RVRF9OQVJSQVRJT05fQVVESU8=",  # "STUD_NARRATION_AUDIO"
+        "provider": "google-tts",
+        "audioBase64": audio,
     }
 
 

@@ -45,20 +45,48 @@ def _fallback_director_prompt(
         "pacing": "pacing",
     }
     lines: list[str] = [
-        "Lullaby — director brief for downstream K2 (scene plan + rewrite + visuals).",
+        "Lullaby — VEO director brief for downstream scene planning, rewrite, and video generation.",
         f"Target language for narration/rewrite: {language}.",
-        "Session: single browser recording, max 5 minutes; input was cleaned of fillers/pauses; preserve story content.",
-        "The director’s selected filters (use consistently):",
+        "Session constraints: single browser recording, max 5 minutes; preserve story facts and emotional intent.",
+        "",
+        "Primary objective for Veo:",
+        "Create a coherent narrative film that directly depicts the transcript content, not abstract motion graphics.",
+        "",
+        "Hard visual constraints (must follow):",
+        "- Do NOT generate abstract geometric morphing, kaleidoscopes, test-pattern visuals, or random color-cycling.",
+        "- Keep one consistent world, lighting logic, and character identity across all shots.",
+        "- Ensure every shot contains concrete story action tied to transcript events.",
+        "- Avoid generic filler imagery that could apply to any story.",
+        "",
+        "Director-selected filters (apply consistently):",
     ]
     for k, v in filters.items():
         label = key_labels.get(k, k)
         lines.append(f"- {label} ({k}): {v}")
-    lines.append(
-        "Next steps: (1) Build a JSON scene plan from the clean transcript + these filters. "
-        "(2) Rewrite for reading level, tone, and target language. "
-        "(3) Keep character and visual style consistent."
+    lines.extend(
+        [
+            "",
+            "Cinematic direction for Veo:",
+            "- Story overview: summarize the exact narrative in 2-4 sentences.",
+            "- Character continuity: specify age/appearance/clothing anchors and keep them fixed.",
+            "- Environment continuity: define primary location(s), era, weather, and texture details.",
+            "- Camera plan: use specific shot grammar (establishing, medium, close-up, tracking, insert).",
+            "- Motion plan: include meaningful character and camera motion in every shot.",
+            "- Lighting and palette: specify practical light sources and stable color design.",
+            "- Negative prompt guidance: exclude abstract artifacts and unrelated objects.",
+            "- Output should feel like one short film, not disconnected clips.",
+            "",
+            "Shot blueprint requirement:",
+            "Provide 4-8 sequential shots with concrete details for each shot:",
+            "- what happens",
+            "- who is visible",
+            "- where the camera is",
+            "- how subjects/camera move",
+            "- key visual details to preserve continuity",
+            "",
+            "Clean transcript (source of truth for the story):",
+        ]
     )
-    lines.append("Clean transcript (source of truth for the story):")
     cap = 4000
     lines.append(clean_transcript[:cap] if len(clean_transcript) <= cap else clean_transcript[: cap - 3] + "...")
     return "\n".join(lines)
@@ -293,6 +321,15 @@ The director_prompt must read like instructions from a film director to an anima
 
 The brief must contain rich visual detail so the video model can clearly imagine the world, characters, and camera movement.
 
+This prompt is consumed by a Veo-style video generation stage.
+Prioritize cinematic continuity, concrete actions, and shot-by-shot specificity.
+
+Never produce abstract or non-narrative visual guidance such as:
+- geometric morphing shapes
+- kaleidoscopic color fields
+- test-pattern motion
+- random color pulsing unrelated to story action
+
 Avoid vague descriptions.
 
 Use concrete visual descriptions.
@@ -359,6 +396,15 @@ Describe camera behavior such as:
 - slow pans
 - gentle zooms
 - perspective
+
+Temporal Shot Plan
+Provide a clear sequential shot plan (4-8 shots) in story order.
+Each shot must include:
+- subject
+- action
+- camera position + lens feel
+- camera movement
+- continuity anchors (wardrobe/props/location)
 
 Scene Guidance
 Create 3–6 short cinematic scene ideas that follow the story.
