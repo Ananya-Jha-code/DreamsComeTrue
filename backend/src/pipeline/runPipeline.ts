@@ -79,11 +79,78 @@ function deriveAudioDurationSeconds(transcript: {
   return Math.max(6, wordCount / wordsPerSecond);
 }
 
+function buildStoryContinuityBrief(input: {
+  title: string;
+  cleanTranscript: string;
+  paragraphs: string[];
+}): string {
+  const transcriptSnippet = input.cleanTranscript.trim().slice(0, 1200);
+  const openingSnippet = (input.paragraphs[0] ?? "").trim();
+
+  return [
+    `Story title: ${input.title}`,
+    `Opening scene and likely protagonists: ${openingSnippet}`,
+    `Whole-story continuity reference: ${transcriptSnippet}`,
+  ]
+    .filter(Boolean)
+    .join("\n");
+}
+
+function buildNoTextPrompt(basePrompt: string): string {
+  return `${basePrompt}\nABSOLUTE RULE: zero text in the image. No letters, no numbers, no symbols, no signage, no labels.`;
+}
+
+function buildFluxDirectorPrompt(input: {
+  pageIndex: number;
+  pageCount: number;
+  bookTitle: string;
+  paragraph: string;
+  continuityBrief: string;
+  visualStyle: string;
+  narratorVoice: string;
+  readingLevel: string;
+  tone: string;
+  pacing: string;
+}): string {
+  return [
+    "DIRECTOR PROMPT FOR FLUX.2-PRO",
+    `Target: storybook page ${input.pageIndex + 1} of ${input.pageCount}`,
+    `Book title: ${input.bookTitle}`,
+    "",
+    "SCENE BRIEF",
+    input.paragraph,
+    "",
+    "STORY CONTINUITY",
+    input.continuityBrief,
+    "",
+    "STYLE DIRECTION",
+    `Visual style: ${input.visualStyle}`,
+    `Narration feel: ${input.narratorVoice}`,
+    `Reading level: ${input.readingLevel}`,
+    `Tone: ${input.tone}`,
+    `Pacing: ${input.pacing}`,
+    "",
+    "COMPOSITION",
+    "Full-page children's picture-book illustration.",
+    "Cinematic depth with foreground, middle ground, and background.",
+    "Clear focal subject with readable silhouettes and expressive body language.",
+    "Consistent lighting and art direction with adjacent pages.",
+    "",
+    "CHARACTER CONTINUITY RULES",
+    "Preserve the same core protagonists and visual traits across pages.",
+    "Do not replace established protagonist types (for example, talking vehicles must remain talking vehicles).",
+    "If this paragraph highlights location/action, keep established protagonists visibly present unless explicitly absent.",
+    "",
+    "STRICT EXCLUSIONS",
+    "No text, letters, words, numbers, captions, speech bubbles, signs, logos, labels, UI, or watermarks.",
+  ].join("\n");
+}
+
 /**
  * Strict stack pipeline orchestration:
  * - ElevenLabs STT for transcription (record branch) — language tag from response
  * - K2 Think for cleanup + paragraph planning
- * - FLUX.1-schnell on Together for picture-book page illustrations
+ * - FLUX.2-pro on Together for picture-book page illustrations
  */
 export async function runPipeline(job: JobRecord, audioBuffer?: Buffer): Promise<void> {
   const { id } = job;
@@ -123,6 +190,11 @@ export async function runPipeline(job: JobRecord, audioBuffer?: Buffer): Promise
     cleanTranscript.pictureBookParagraphs.length > 0
       ? cleanTranscript.pictureBookParagraphs
       : splitParagraphs(cleanTranscript.text);
+  const continuityBrief = buildStoryContinuityBrief({
+    title: bookTitle,
+    cleanTranscript: cleanTranscript.text,
+    paragraphs,
+  });
 
   const pages: Array<{
     index: number;
@@ -135,21 +207,26 @@ export async function runPipeline(job: JobRecord, audioBuffer?: Buffer): Promise
   }> = [];
 
   for (const [index, paragraph] of paragraphs.entries()) {
-    const imagePrompt = [
-      `Illustrate page ${index + 1} of ${paragraphs.length} for a children's picture book titled "${bookTitle}".`,
-      `Paragraph: ${paragraph}`,
-      `Global style: ${labelFilter("visualStyle", job.filters.visualStyle)}.`,
-      `Reading level: ${labelFilter("readingLevel", job.filters.readingLevel)}.`,
-      `Tone: ${labelFilter("tone", job.filters.tone)}.`,
-      "Compose as a full-page storybook illustration with strong foreground, middle ground, and background depth.",
-      "Keep characters visually consistent across pages and avoid any text, captions, frames, or watermarks.",
-      "The page should feel warm, readable, and directly connected to the paragraph.",
-    ].join("\n");
+    const baseImagePrompt = buildFluxDirectorPrompt({
+      pageIndex: index,
+      pageCount: paragraphs.length,
+      bookTitle,
+      paragraph,
+      continuityBrief,
+      visualStyle: labelFilter("visualStyle", job.filters.visualStyle),
+      narratorVoice: labelFilter("narratorVoice", job.filters.narratorVoice),
+      readingLevel: labelFilter("readingLevel", job.filters.readingLevel),
+      tone: labelFilter("tone", job.filters.tone),
+      pacing: labelFilter("pacing", job.filters.pacing),
+    });
+
+    const imagePrompt = buildNoTextPrompt(baseImagePrompt);
 
     const illustration = await generateIllustrationFromPrompt({
       prompt: imagePrompt,
       aspectRatio: "3:4",
     });
+
     pages.push({
       index,
       paragraph,

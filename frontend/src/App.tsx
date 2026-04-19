@@ -3,12 +3,16 @@ import { useLocation } from "react-router-dom";
 import LandingPage from "./pages/LandingPage";
 import PickerPage from "./pages/PickerPage";
 import RecordPage from "./pages/RecordPage";
+import LoadingPage from "./pages/LoadingPage";
+import BookPage from "./pages/BookPage";
 
-const PATHS = ["/", "/picker", "/record"];
+const PATHS = ["/", "/picker", "/record", "/loading", "/book"];
 
 function getComponent(pathname: string) {
   if (pathname === "/picker") return <PickerPage />;
   if (pathname === "/record") return <RecordPage />;
+  if (pathname === "/loading") return <LoadingPage />;
+  if (pathname === "/book") return <BookPage />;
   return <LandingPage />;
 }
 

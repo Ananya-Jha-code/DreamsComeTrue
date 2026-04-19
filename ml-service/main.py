@@ -156,11 +156,11 @@ def _resolve_flux_api_key() -> str:
 
 
 def _resolve_flux_model() -> str:
-    model_ref = os.getenv("FLUX_MODEL", "black-forest-labs/FLUX.1-schnell").strip()
+    model_ref = os.getenv("FLUX_MODEL", "black-forest-labs/FLUX.2-pro").strip()
     if not model_ref or "/" not in model_ref:
         raise HTTPException(
             status_code=500,
-            detail="FLUX_MODEL must be set to a Together image model (for example black-forest-labs/FLUX.1-schnell)",
+            detail="FLUX_MODEL must be set to a Together image model (for example black-forest-labs/FLUX.2-pro)",
         )
     return model_ref
 
@@ -256,7 +256,11 @@ def illustration(req: IllustrationRequest, x_ml_token: str | None = Header(defau
     if not prompt:
         raise HTTPException(status_code=400, detail="prompt is required")
 
-    out = _generate_illustration_with_flux(prompt, req.aspect_ratio, req.output_mime_type)
+    out = _generate_illustration_with_flux(
+        prompt,
+        req.aspect_ratio,
+        req.output_mime_type,
+    )
     return IllustrationResponse(
         image_base64=out["image_base64"],
         mime_type=out["mime_type"],
