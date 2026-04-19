@@ -10,7 +10,7 @@ Web app scaffold for the PRD pipeline: spoken story -> narrated illustrated pict
 | Backend | Node.js + Express + FastAPI (ML calls) |
 | Transcription | Whisper large-v3 on Modal or Replicate |
 | Cleanup / Planning / Rewrite | K2 Think primary, Gemini 2.5 Pro fallback |
-| Image generation | FLUX.1-schnell primary for page illustrations, local SVG fallback |
+| Image generation | FLUX.1-schnell on Together for page illustrations |
 | Narration audio | Gemini 2.5 native multimodal TTS |
 | Ambient audio | Gemini 2.5 multimodal audio |
 | Assembly | Page-by-page image composition |
@@ -103,7 +103,7 @@ docker compose down
 - Put your ElevenLabs API key in `ml-service/.env` as `ELEVENLABS_API_KEY=...`
 - Never commit real keys.
 
-For the current transcription flow, `ELEVENLABS_API_KEY` is the only required ML service secret. `K2THINK_API_KEY` enables paragraph planning and `FLUX_API_KEY` (or `REPLICATE_API_TOKEN`) enables illustration generation.
+For the current transcription flow, `ELEVENLABS_API_KEY` is the only required ML service secret. `K2THINK_API_KEY` enables paragraph planning and `TOGETHER_API_KEY` enables FLUX illustration generation.
 
 ## Build
 

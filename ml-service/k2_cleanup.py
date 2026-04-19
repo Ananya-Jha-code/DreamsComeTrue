@@ -250,14 +250,14 @@ def build_cleanup_messages(
 1) cleaning a speech transcript
 2) splitting the story into picture-book pages
 
-Your response MUST be exactly one JSON object with the keys:
+Your response MUST be valid JSON (application/json) and exactly one JSON object with the keys:
 
 clean_transcript
 language
 book_title
 picture_book_paragraphs
 
-Do NOT include markdown, explanations, or additional text.
+Do NOT include markdown, explanations, code fences, or additional text.
 
 --------------------------------------------------
 
@@ -372,7 +372,7 @@ DETECTED_LANGUAGE_TAG: {lang}
 SELECTED_FILTERS (machine keys + values):
 {json.dumps(filters, indent=2)}
 
-Return ONLY the JSON object specified in the system message."""
+Return ONLY valid JSON for the object specified in the system message."""
 
     return [
         {"role": "system", "content": system},
@@ -416,7 +416,9 @@ def run_k2_cleanup(
         "temperature": float(os.getenv("K2_TEMPERATURE", "0.3")),
         "stream": False,
     }
-    if os.getenv("K2_JSON_MODE", "0").strip().lower() in ("1", "true", "yes"):
+    # Enforce structured output by default so providers return JSON objects,
+    # not free-form/plain text. Set K2_JSON_MODE=0 to opt out if needed.
+    if os.getenv("K2_JSON_MODE", "1").strip().lower() in ("1", "true", "yes"):
         payload["response_format"] = {"type": "json_object"}
 
     headers = {
@@ -443,9 +445,21 @@ def run_k2_cleanup(
     try:
         parsed = _extract_json_object(content)
     except json.JSONDecodeError as e:
-        raise RuntimeError(
-            f"K2 output was not parseable as JSON. {e!s}. First 500 chars: {content[:500]!r}"
-        ) from e
+        # Graceful degradation: if the model replies with prose/reasoning instead
+        # of JSON, continue the pipeline using deterministic fallbacks.
+        fallback_clean = raw_transcript.strip()
+        if not fallback_clean:
+            raise RuntimeError(
+                f"K2 output was not parseable as JSON. {e!s}. First 500 chars: {content[:500]!r}"
+            ) from e
+        parsed = {
+            "clean_transcript": fallback_clean,
+            "language": _resolve_language(None, language_tag),
+            "book_title": _fallback_book_title(fallback_clean),
+            "picture_book_paragraphs": _fallback_picture_book_paragraphs(fallback_clean),
+            "parse_warning": f"non_json_model_output: {e!s}",
+            "raw_model_text_excerpt": content[:500],
+        }
 
     clean = str(parsed.get("clean_transcript", "")).strip()
     if not clean:

@@ -2,7 +2,6 @@ from __future__ import annotations
 
 import base64
 import os
-import time
 from pathlib import Path
 from typing import Any, Literal
 
@@ -152,29 +151,32 @@ def cleanup(req: CleanupRequest, x_ml_token: str | None = Header(default=None)) 
 
 
 def _resolve_flux_api_key() -> str:
-    for key_name in ("FLUX_API_KEY", "REPLICATE_API_TOKEN"):
-        value = os.getenv(key_name, "").strip()
-        if value:
-            return value
-    raise HTTPException(status_code=500, detail="Missing FLUX_API_KEY (or REPLICATE_API_TOKEN)")
+    value = os.getenv("TOGETHER_API_KEY", "").strip()
+    if value:
+        return value
+    raise HTTPException(status_code=500, detail="Missing TOGETHER_API_KEY")
 
 
-def _parse_flux_model() -> tuple[str, str]:
+def _resolve_flux_model() -> str:
     model_ref = os.getenv("FLUX_MODEL", "black-forest-labs/FLUX.1-schnell").strip()
-    if "/" not in model_ref:
+    if not model_ref or "/" not in model_ref:
         raise HTTPException(
             status_code=500,
-            detail="FLUX_MODEL must be in owner/model format (for example black-forest-labs/FLUX.1-schnell)",
+            detail="FLUX_MODEL must be set to a Together image model (for example black-forest-labs/FLUX.1-schnell)",
         )
-    owner, name = model_ref.split("/", 1)
-    owner = owner.strip()
-    name = name.strip()
-    if not owner or not name:
-        raise HTTPException(
-            status_code=500,
-            detail="FLUX_MODEL must include both owner and model name",
-        )
-    return owner, name
+    return model_ref
+
+
+def _aspect_ratio_to_dimensions(aspect_ratio: str) -> tuple[int, int]:
+    ratio = (aspect_ratio or "").strip()
+    mapping: dict[str, tuple[int, int]] = {
+        "1:1": (1024, 1024),
+        "3:4": (768, 1024),
+        "4:3": (1024, 768),
+        "9:16": (576, 1024),
+        "16:9": (1024, 576),
+    }
+    return mapping.get(ratio, (768, 1024))
 
 
 def _generate_illustration_with_flux(
@@ -183,91 +185,70 @@ def _generate_illustration_with_flux(
     output_mime_type: str = "image/jpeg",
 ) -> dict[str, str]:
     api_key = _resolve_flux_api_key()
-    owner, model_name = _parse_flux_model()
-    model_ref = f"{owner}/{model_name}"
-
-    output_format = "jpg" if output_mime_type == "image/jpeg" else "png"
+    model_ref = _resolve_flux_model()
     timeout_seconds = float(os.getenv("FLUX_TIMEOUT_SECONDS", "120"))
+    width, height = _aspect_ratio_to_dimensions(aspect_ratio)
 
-    create_url = f"https://api.replicate.com/v1/models/{owner}/{model_name}/predictions"
+    together_url = "https://api.together.xyz/v1/images/generations"
     headers = {
         "Authorization": f"Bearer {api_key}",
         "Content-Type": "application/json",
     }
-    create_payload = {
-        "input": {
-            "prompt": prompt,
-            "aspect_ratio": aspect_ratio,
-            "output_format": output_format,
-            "num_outputs": 1,
-        }
+    payload = {
+        "model": model_ref,
+        "prompt": prompt,
+        "n": 1,
+        "width": width,
+        "height": height,
     }
 
     try:
         with httpx.Client(timeout=timeout_seconds) as client:
-            create_res = client.post(create_url, headers=headers, json=create_payload)
-            if create_res.status_code >= 400:
+            response = client.post(together_url, headers=headers, json=payload)
+            if response.status_code >= 400:
                 raise HTTPException(
                     status_code=502,
-                    detail=f"FLUX prediction create failed ({create_res.status_code}): {create_res.text}",
+                    detail=f"Together image generation failed ({response.status_code}): {response.text}",
                 )
 
-            prediction = create_res.json()
-            prediction_id = str(prediction.get("id", "")).strip()
-            if not prediction_id:
-                raise HTTPException(status_code=502, detail="FLUX response missing prediction id")
+        body = response.json()
+        data = body.get("data") if isinstance(body, dict) else None
+        if not isinstance(data, list) or not data:
+            raise HTTPException(status_code=502, detail="Together response did not include image data")
 
-            status_url = f"https://api.replicate.com/v1/predictions/{prediction_id}"
-            started = time.monotonic()
-            while True:
-                status = str(prediction.get("status", "")).strip().lower()
-                if status == "succeeded":
-                    break
-                if status in {"failed", "canceled"}:
-                    err = prediction.get("error") or "unknown error"
-                    raise HTTPException(status_code=502, detail=f"FLUX prediction failed: {err}")
-                if time.monotonic() - started > timeout_seconds:
-                    raise HTTPException(status_code=504, detail="FLUX prediction timed out")
+        image_item = data[0]
+        if not isinstance(image_item, dict):
+            raise HTTPException(status_code=502, detail="Together image payload is invalid")
 
-                time.sleep(0.9)
-                poll_res = client.get(status_url, headers=headers)
-                if poll_res.status_code >= 400:
+        b64_json = image_item.get("b64_json")
+        image_url = image_item.get("url")
+
+        if isinstance(b64_json, str) and b64_json.strip():
+            encoded = b64_json.strip()
+            mime_type = output_mime_type
+        elif isinstance(image_url, str) and image_url.strip():
+            with httpx.Client(timeout=timeout_seconds) as client:
+                image_res = client.get(image_url.strip())
+                if image_res.status_code >= 400:
                     raise HTTPException(
                         status_code=502,
-                        detail=f"FLUX prediction poll failed ({poll_res.status_code}): {poll_res.text}",
+                        detail=f"Together image download failed ({image_res.status_code})",
                     )
-                prediction = poll_res.json()
+            mime_type = image_res.headers.get("content-type") or output_mime_type
+            encoded = base64.b64encode(image_res.content).decode("utf-8")
+        else:
+            raise HTTPException(status_code=502, detail="Together response did not include image content")
 
-            output = prediction.get("output")
-            image_url = ""
-            if isinstance(output, list) and output:
-                image_url = str(output[0])
-            elif isinstance(output, str):
-                image_url = output
-
-            image_url = image_url.strip()
-            if not image_url:
-                raise HTTPException(status_code=502, detail="FLUX output did not include an image URL")
-
-            image_res = client.get(image_url)
-            if image_res.status_code >= 400:
-                raise HTTPException(
-                    status_code=502,
-                    detail=f"FLUX image download failed ({image_res.status_code})",
-                )
-
-        mime_type = image_res.headers.get("content-type") or output_mime_type
-        encoded = base64.b64encode(image_res.content).decode("utf-8")
         return {
             "image_base64": encoded,
             "mime_type": mime_type,
-            "provider": "replicate-flux",
+            "provider": "together-flux",
             "model": model_ref,
         }
     except HTTPException:
         raise
     except Exception as exc:
-        raise HTTPException(status_code=502, detail=f"FLUX generation failed: {exc}") from exc
+        raise HTTPException(status_code=502, detail=f"Together FLUX generation failed: {exc}") from exc
 
 
 @app.post("/v1/illustration", response_model=IllustrationResponse)

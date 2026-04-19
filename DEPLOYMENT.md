@@ -31,9 +31,8 @@ Choose one platform for both Express + FastAPI:
 
 ### FastAPI
 - `ML_SERVICE_TOKEN`
-- `GOOGLE_API_KEY`
-- `REPLICATE_API_TOKEN`
-- `FAL_KEY`
+- `TOGETHER_API_KEY`
+- `FLUX_MODEL` (optional, defaults to `black-forest-labs/FLUX.1-schnell`)
 - `WHISPER_PROVIDER` (`replicate` or `modal`)
 
 ## Network Rules
