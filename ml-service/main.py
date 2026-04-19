@@ -10,7 +10,7 @@ from dotenv import load_dotenv
 from fastapi import FastAPI, Header, HTTPException
 from pydantic import BaseModel
 
-load_dotenv(dotenv_path=Path(__file__).with_name(".env"))
+load_dotenv(dotenv_path=Path(__file__).resolve().parents[1] / ".env")
 
 from k2_cleanup import run_k2_cleanup  # noqa: E402
 

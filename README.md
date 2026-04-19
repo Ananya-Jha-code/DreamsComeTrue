@@ -5,7 +5,7 @@
 [![HackPrinceton Spring 2026](https://img.shields.io/badge/HackPrinceton-Spring%202026-gold?style=flat-square)](https://hackprinceton.com)
 [![Built in 36 Hours](https://img.shields.io/badge/Built%20in-36%20Hours-blueviolet?style=flat-square)](https://github.com/Ananya-Jha-code/DreamsComeTrue)
 [![K2 Think v2](https://img.shields.io/badge/Powered%20by-K2%20Think%20v2-orange?style=flat-square)](https://k2think.ai)
-[![Gemini 2.5 Flash](https://img.shields.io/badge/Images-Gemini%202.5%20Flash-blue?style=flat-square)](https://deepmind.google/gemini)
+[![Together FLUX](https://img.shields.io/badge/Images-Together%20FLUX-blue?style=flat-square)](https://www.together.ai)
 [![ElevenLabs](https://img.shields.io/badge/Voice-ElevenLabs%20Scribe%20v2-yellow?style=flat-square)](https://elevenlabs.io)
 
 DreamsComeTrue turns a spoken story into a multi-page illustrated picture book. You choose a visual style, reading level, and tone before you record. The app transcribes the audio, cleans and structures the story, and generates page illustrations that arrive progressively in the UI.
@@ -30,7 +30,7 @@ flowchart LR
 
 	ml --> stt[ElevenLabs Scribe v2<br/>Transcription]
 	ml --> k2[K2 Think v2<br/>Cleanup + story structuring]
-	ml --> img[Gemini 2.5 Flash / Together<br/>Illustration generation]
+	ml --> img[Together FLUX<br/>Illustration generation]
 
 	api -. stores status .-> store[Job store]
 	ui -. renders pages .-> book[Picture-book UI]
@@ -46,7 +46,7 @@ The frontend sends audio and filter choices to the backend. The backend creates 
 1. Record voice in the browser.
 2. Send the audio to ElevenLabs Scribe v2 for transcription.
 3. Use K2 Think v2 to clean the transcript, choose a title, and split the story into picture-book pages.
-4. Use Gemini 2.5 Flash to generate one illustration per page.
+4. Use Together FLUX to generate one illustration per page.
 5. Stream the finished pages back into the book view.
 
 ## Why It Is Split This Way
@@ -70,7 +70,7 @@ The job flow is asynchronous because image generation takes time. The backend re
 
 - Node.js 20+
 - Python 3.12+
-- API keys for ElevenLabs, Google AI, and K2 Think
+- API keys for ElevenLabs, Together, and K2 Think
 
 ## Install Dependencies
 
@@ -79,6 +79,8 @@ From the repository root:
 ```bash
 npm install
 py -3.12 -m pip install -r ml-service/requirements.txt
+cp .env.example .env   # macOS/Linux
+copy .env.example .env
 ```
 
 ## Run Locally
@@ -101,7 +103,6 @@ Backend:
 
 ```bash
 cd backend
-cp .env.example .env
 npm run dev
 ```
 
@@ -116,7 +117,6 @@ ML service:
 
 ```bash
 cd ml-service
-cp .env.example .env
 py -3.12 -m uvicorn main:app --reload --port 8000
 ```
 
@@ -124,28 +124,29 @@ Open `http://localhost:5173` in your browser.
 
 ## Environment Variables
 
-### `ml-service/.env`
+### `.env` (repository root)
 
 ```env
+PORT=3001
+FRONTEND_ORIGIN=http://localhost:5173
+ML_SERVICE_URL=http://localhost:8000
+ML_SERVICE_TOKEN=dev-token
+
 ELEVENLABS_API_KEY=
 ELEVENLABS_STT_MODEL=scribe_v2
 ELEVENLABS_STT_URL=https://api.elevenlabs.io/v1/speech-to-text
-TOGETHER_API_KEY=
+
 K2THINK_API_KEY=
 K2_BASE_URL=https://api.k2think.ai/v1
 K2_CLEANUP_MODEL=MBZUAI-IFM/K2-Think-v2
+K2_MODEL=MBZUAI-IFM/K2-Think-v2
+K2_TIMEOUT_SECONDS=120
 K2_TEMPERATURE=0.3
+K2_JSON_MODE=0
+
+TOGETHER_API_KEY=
 FLUX_MODEL=black-forest-labs/FLUX.2-pro
 FLUX_TIMEOUT_SECONDS=120
-ML_SERVICE_TOKEN=dev-token
-```
-
-### `backend/.env`
-
-```env
-ML_SERVICE_URL=http://localhost:8000
-ML_SERVICE_TOKEN=dev-token
-PORT=3001
 ```
 
 ## npm Scripts
