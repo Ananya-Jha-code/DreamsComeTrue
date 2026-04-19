@@ -9,10 +9,12 @@
 
 ## Backend Services
 
-Choose one platform for both Express + FastAPI:
+Use **Render** for both Express + FastAPI.
 
-1. **Fly.io** (recommended for one app with two processes)
-2. **Modal** (function-first; can host ML endpoints and/or orchestration API)
+- Blueprint file: `render.yaml` (repository root)
+- Backend service root: `backend/`
+- ML service root: `ml-service/`
+- Both services can run on Render free tier
 
 ## Required Runtime Services
 
@@ -26,16 +28,24 @@ Choose one platform for both Express + FastAPI:
 ### Express
 - `ML_SERVICE_URL`
 - `ML_SERVICE_TOKEN`
-- `SUPABASE_URL`
-- `SUPABASE_SERVICE_ROLE_KEY`
+- `FRONTEND_ORIGIN`
 
 ### FastAPI
 - `ML_SERVICE_TOKEN`
+- `ELEVENLABS_API_KEY`
+- `K2THINK_API_KEY`
 - `TOGETHER_API_KEY`
-- `FLUX_MODEL` (optional, defaults to `black-forest-labs/FLUX.1-schnell`)
-- `WHISPER_PROVIDER` (`replicate` or `modal`)
+- `FLUX_MODEL` (optional, defaults to `black-forest-labs/FLUX.2-pro`)
 
 ## Network Rules
 
 - FastAPI should not be publicly exposed without token checks.
 - Express should call FastAPI via private URL/internal network when possible.
+
+## Render + Vercel Wiring
+
+1. Deploy the Render blueprint from `render.yaml`.
+2. Set backend `ML_SERVICE_URL` to your Render ML service URL.
+3. Set the same `ML_SERVICE_TOKEN` on both backend and ML services.
+4. Set backend `FRONTEND_ORIGIN` to your Vercel domain.
+5. In Vercel, set `VITE_API_BASE_URL` to your backend Render URL.

@@ -1,0 +1,58 @@
+services:
+  - type: web
+    name: dreamscometrue-backend
+    runtime: node
+    plan: free
+    rootDir: backend
+    buildCommand: npm ci && npm run build
+    startCommand: npm run start
+    healthCheckPath: /api/health
+    envVars:
+      - key: NODE_VERSION
+        value: 20
+      - key: ML_SERVICE_URL
+        sync: false
+      - key: ML_SERVICE_TOKEN
+        sync: false
+      - key: FRONTEND_ORIGIN
+        sync: false
+
+  - type: web
+    name: dreamscometrue-ml
+    runtime: python
+    plan: free
+    rootDir: ml-service
+    buildCommand: pip install -r requirements.txt
+    startCommand: uvicorn main:app --host 0.0.0.0 --port $PORT
+    healthCheckPath: /health
+    envVars:
+      - key: PYTHON_VERSION
+        value: 3.12.8
+      - key: ML_SERVICE_TOKEN
+        sync: false
+      - key: ELEVENLABS_API_KEY
+        sync: false
+      - key: ELEVENLABS_STT_MODEL
+        value: scribe_v2
+      - key: ELEVENLABS_STT_URL
+        value: https://api.elevenlabs.io/v1/speech-to-text
+      - key: K2THINK_API_KEY
+        sync: false
+      - key: K2_BASE_URL
+        value: https://api.k2think.ai/v1
+      - key: K2_CLEANUP_MODEL
+        value: MBZUAI-IFM/K2-Think-v2
+      - key: K2_MODEL
+        value: MBZUAI-IFM/K2-Think-v2
+      - key: K2_TIMEOUT_SECONDS
+        value: "120"
+      - key: K2_TEMPERATURE
+        value: "0.3"
+      - key: K2_JSON_MODE
+        value: "0"
+      - key: TOGETHER_API_KEY
+        sync: false
+      - key: FLUX_MODEL
+        value: black-forest-labs/FLUX.2-pro
+      - key: FLUX_TIMEOUT_SECONDS
+        value: "120"

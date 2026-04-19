@@ -178,8 +178,27 @@ npm run start -w backend
 ## Deployment Notes
 
 - Frontend: Vercel
-- Backend and ML service: Fly.io or Modal
+- Backend and ML service: Render (free web services)
 - Keep the ML service behind an internal token and do not expose provider keys in the browser
+
+### Render Setup (Backend + ML Service)
+
+1. In Render, create a new Blueprint and point it at this repository.
+2. Use `render.yaml` from the repository root.
+3. After services are created, set these required environment values:
+
+Backend service:
+- `ML_SERVICE_URL=https://<your-ml-service>.onrender.com`
+- `ML_SERVICE_TOKEN=<shared-random-token>`
+- `FRONTEND_ORIGIN=https://<your-vercel-domain>`
+
+ML service:
+- `ML_SERVICE_TOKEN=<same-shared-random-token-as-backend>`
+- `ELEVENLABS_API_KEY`, `K2THINK_API_KEY`, `TOGETHER_API_KEY`
+
+4. In Vercel, set `VITE_API_BASE_URL=https://<your-backend-service>.onrender.com`.
+
+The frontend API client now supports `VITE_API_BASE_URL`; if unset, it falls back to relative `/api` paths for local dev/proxy setups.
 
 See [DEPLOYMENT.md](DEPLOYMENT.md) for the deployment plan.
 
