@@ -4,7 +4,7 @@
 
 Web app scaffold for the PRD pipeline: spoken story → narrated illustrated picture book.
 
-Turn spoken stories into a **narrated illustrated picture book**: upload or record audio, choose visual style / reading level / tone, and get page-by-page text plus **Gemini** illustrations driven by your transcript.
+Turn spoken stories into a **narrated illustrated picture book**: upload or record audio, choose visual style / reading level / tone, **K2 Think V2** reasoning and get page-by-page text plus **Gemini** illustrations driven by your transcript.
 
 ![System architecture](docs/architecture.png)
 
