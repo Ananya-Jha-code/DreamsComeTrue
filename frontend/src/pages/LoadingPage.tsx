@@ -158,7 +158,7 @@ export default function LoadingPage() {
               <div className="ld-spinner" />
               <p className="ld-status">Current stage</p>
               <div className="ld-stage">{prettyStage(stage)}</div>
-              <p className="ld-meta">Elapsed: {etaSeconds}s · Job {jobId || "unknown"}</p>
+              <p className="ld-meta">Elapsed: {etaSeconds}s</p>
             </>
           ) : (
             <>

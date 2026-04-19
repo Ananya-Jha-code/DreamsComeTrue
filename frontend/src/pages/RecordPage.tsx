@@ -584,25 +584,6 @@ export default function RecordPage() {
                 />
                 <span className="pb-player-time">{fmt(Math.floor(playbackPosition))} / {fmt(Math.floor(playbackDuration))}</span>
               </div>
-              <div className="pb-player-meta">
-                <span className="pb-player-label">Recorded narration preview</span>
-                <button
-                  type="button"
-                  onClick={() => {
-                    if (!audioPlayerRef.current) return;
-                    audioPlayerRef.current.currentTime = 0;
-                    void audioPlayerRef.current.play();
-                  }}
-                  className="pb-btn secondary"
-                  style={{ padding: ".55rem 1.1rem", fontSize: ".68rem" }}
-                >
-                  Restart
-                </button>
-              </div>
-              <div className="pb-player-row" style={{ justifyContent: "space-between" }}>
-                <span className="pb-player-label">Use the slider to scrub playback</span>
-                <span className="pb-player-time">Narration</span>
-              </div>
             </div>
           )}
 
