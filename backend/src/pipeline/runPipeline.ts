@@ -274,6 +274,107 @@ function buildSafeFallbackPrompt(input: {
   ].join("\n");
 }
 
+type GeneratedPage = {
+  index: number;
+  paragraph: string;
+  imageDataUrl: string;
+  imageMimeType: string;
+  imageProvider: string;
+  imageModel: string;
+  imagePrompt: string;
+};
+
+async function generateBookPage(input: {
+  id: string;
+  index: number;
+  paragraph: string;
+  pageCount: number;
+  bookTitle: string;
+  continuityBrief: string;
+  characterAnchorBrief: string;
+  visualStyle: string;
+  readingLevel: string;
+  tone: string;
+}): Promise<GeneratedPage> {
+  const baseImagePrompt = buildFluxDirectorPrompt({
+    pageIndex: input.index,
+    pageCount: input.pageCount,
+    bookTitle: input.bookTitle,
+    paragraph: input.paragraph,
+    continuityBrief: input.continuityBrief,
+    characterAnchorBrief: input.characterAnchorBrief,
+    visualStyle: input.visualStyle,
+    readingLevel: input.readingLevel,
+    tone: input.tone,
+  });
+
+  const imagePrompt = buildNoTextPrompt(baseImagePrompt);
+  let usedPrompt = imagePrompt;
+  let illustration;
+
+  try {
+    illustration = await generateIllustrationFromPrompt({
+      prompt: imagePrompt,
+      aspectRatio: "3:4",
+    });
+  } catch (error) {
+    if (!isModerationError(error)) {
+      throw error;
+    }
+
+    console.warn("[pipeline][page][moderation-retry]", input.id, {
+      page: input.index + 1,
+      reason: error instanceof Error ? error.message : String(error),
+    });
+
+    const fallbackPrompt = buildNoTextPrompt(
+      buildSafeFallbackPrompt({
+        pageIndex: input.index,
+        pageCount: input.pageCount,
+        paragraph: input.paragraph,
+        characterAnchorBrief: input.characterAnchorBrief,
+        visualStyle: input.visualStyle,
+      })
+    );
+
+    usedPrompt = fallbackPrompt;
+    illustration = await generateIllustrationFromPrompt({
+      prompt: fallbackPrompt,
+      aspectRatio: "3:4",
+    });
+  }
+
+  return {
+    index: input.index,
+    paragraph: input.paragraph,
+    imageDataUrl: `data:${illustration.mimeType};base64,${illustration.imageBase64}`,
+    imageMimeType: illustration.mimeType,
+    imageProvider: illustration.provider,
+    imageModel: illustration.model,
+    imagePrompt: usedPrompt,
+  };
+}
+
+async function runWithConcurrency<T>(
+  items: number[],
+  concurrency: number,
+  worker: (item: number) => Promise<T>
+): Promise<T[]> {
+  const results: T[] = [];
+  let nextIndex = 0;
+
+  const runners = Array.from({ length: Math.max(1, concurrency) }, async () => {
+    while (nextIndex < items.length) {
+      const current = nextIndex;
+      nextIndex += 1;
+      results[current] = await worker(items[current]);
+    }
+  });
+
+  await Promise.all(runners);
+  return results;
+}
+
 /**
  * Strict stack pipeline orchestration:
  * - ElevenLabs STT for transcription (record branch) — language tag from response
@@ -325,22 +426,16 @@ export async function runPipeline(job: JobRecord, audioBuffer?: Buffer): Promise
   });
   const characterAnchorBrief = buildCharacterAnchorBrief(paragraphs[0] ?? cleanTranscript.text);
 
-  const pages: Array<{
-    index: number;
-    paragraph: string;
-    imageDataUrl: string;
-    imageMimeType: string;
-    imageProvider: string;
-    imageModel: string;
-    imagePrompt: string;
-  }> = [];
+  const pages: Array<GeneratedPage | undefined> = new Array(paragraphs.length);
+  const pageConcurrency = Math.max(1, Number.parseInt(process.env.FLUX_PAGE_CONCURRENCY ?? "2", 10) || 2);
 
-  for (const [index, paragraph] of paragraphs.entries()) {
-    const baseImagePrompt = buildFluxDirectorPrompt({
-      pageIndex: index,
+  await runWithConcurrency(paragraphs.map((_, index) => index), pageConcurrency, async (index) => {
+    const page = await generateBookPage({
+      id,
+      index,
+      paragraph: paragraphs[index],
       pageCount: paragraphs.length,
       bookTitle,
-      paragraph,
       continuityBrief,
       characterAnchorBrief,
       visualStyle: labelFilter("visualStyle", job.filters.visualStyle),
@@ -348,65 +443,25 @@ export async function runPipeline(job: JobRecord, audioBuffer?: Buffer): Promise
       tone: labelFilter("tone", job.filters.tone),
     });
 
-    const imagePrompt = buildNoTextPrompt(baseImagePrompt);
-    let usedPrompt = imagePrompt;
-    let illustration;
-
-    try {
-      illustration = await generateIllustrationFromPrompt({
-        prompt: imagePrompt,
-        aspectRatio: "3:4",
-      });
-    } catch (error) {
-      if (!isModerationError(error)) {
-        throw error;
-      }
-
-      console.warn("[pipeline][page][moderation-retry]", id, {
-        page: index + 1,
-        reason: error instanceof Error ? error.message : String(error),
-      });
-
-      const fallbackPrompt = buildNoTextPrompt(
-        buildSafeFallbackPrompt({
-          pageIndex: index,
-          pageCount: paragraphs.length,
-          paragraph,
-          characterAnchorBrief,
-          visualStyle: labelFilter("visualStyle", job.filters.visualStyle),
-        })
-      );
-
-      usedPrompt = fallbackPrompt;
-      illustration = await generateIllustrationFromPrompt({
-        prompt: fallbackPrompt,
-        aspectRatio: "3:4",
-      });
-    }
-
-    pages.push({
-      index,
-      paragraph,
-      imageDataUrl: `data:${illustration.mimeType};base64,${illustration.imageBase64}`,
-      imageMimeType: illustration.mimeType,
-      imageProvider: illustration.provider,
-      imageModel: illustration.model,
-      imagePrompt: usedPrompt,
-    });
+    pages[index] = page;
     console.log("[pipeline][page]", id, {
       page: index + 1,
-      provider: illustration.provider,
-      model: illustration.model,
+      provider: page.imageProvider,
+      model: page.imageModel,
     });
+
+    const readyPages = pages
+      .filter((item): item is GeneratedPage => Boolean(item))
+      .sort((left, right) => left.index - right.index);
 
     updateJob(id, {
       result: {
         bookTitle,
         pictureBookParagraphs: paragraphs,
-        pages: [...pages],
+        pages: readyPages,
       },
     });
-  }
+  });
 
   updateJob(id, {
     stage: "ready",
@@ -416,7 +471,7 @@ export async function runPipeline(job: JobRecord, audioBuffer?: Buffer): Promise
       language: cleanTranscript.language,
       bookTitle,
       pictureBookParagraphs: paragraphs,
-      pages,
+      pages: pages.filter((item): item is GeneratedPage => Boolean(item)).sort((left, right) => left.index - right.index),
       rawModelJson: cleanTranscript.rawModelJson,
     },
   });
