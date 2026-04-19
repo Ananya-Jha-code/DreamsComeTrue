@@ -2,21 +2,96 @@ import type { StoryFilters } from "../types/filters.js";
 
 const ML_SERVICE_URL = process.env.ML_SERVICE_URL ?? "http://localhost:8000";
 const ML_SERVICE_TOKEN = process.env.ML_SERVICE_TOKEN ?? "dev-token";
+const ML_SERVICE_TIMEOUT_MS = Number(process.env.ML_SERVICE_TIMEOUT_MS ?? 45000);
+const ML_SERVICE_MAX_ATTEMPTS = Number(process.env.ML_SERVICE_MAX_ATTEMPTS ?? 4);
+const ML_SERVICE_RETRY_BASE_MS = Number(process.env.ML_SERVICE_RETRY_BASE_MS ?? 2000);
+const RETRYABLE_STATUSES = new Set([502, 503, 504]);
+
+function sleep(ms: number): Promise<void> {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
+function formatErrorBody(body: string): string {
+  const compact = body.replace(/\s+/g, " ").trim();
+  return compact.length > 240 ? `${compact.slice(0, 240)}...` : compact;
+}
+
+function normalizeBaseUrl(url: string): string {
+  return url.replace(/\/+$/, "");
+}
+
+function buildMlUrl(path: string): string {
+  const base = normalizeBaseUrl(ML_SERVICE_URL);
+  let nextPath = path.startsWith("/") ? path : `/${path}`;
+
+  // If env includes /v1 already, avoid calling /v1/v1/... by stripping the duplicate segment.
+  if (/\/v1$/i.test(base) && /^\/v1(\/|$)/i.test(nextPath)) {
+    nextPath = nextPath.replace(/^\/v1/i, "");
+    if (!nextPath.startsWith("/")) {
+      nextPath = `/${nextPath}`;
+    }
+  }
+
+  return `${base}${nextPath}`;
+}
+
+function isRetryableFetchError(error: unknown): boolean {
+  if (!(error instanceof Error)) {
+    return false;
+  }
+  if (error.name === "AbortError") {
+    return true;
+  }
+  return true;
+}
 
 async function mlPost<TReq, TRes>(path: string, body: TReq): Promise<TRes> {
-  const res = await fetch(`${ML_SERVICE_URL}${path}`, {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-      "x-ml-token": ML_SERVICE_TOKEN,
-    },
-    body: JSON.stringify(body),
-  });
-  if (!res.ok) {
-    const text = await res.text();
-    throw new Error(`ML service ${path} failed (${res.status}): ${text}`);
+  let lastError: Error | null = null;
+
+  for (let attempt = 1; attempt <= ML_SERVICE_MAX_ATTEMPTS; attempt += 1) {
+    try {
+      const targetUrl = buildMlUrl(path);
+      const res = await fetch(targetUrl, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "x-ml-token": ML_SERVICE_TOKEN,
+        },
+        body: JSON.stringify(body),
+        signal: AbortSignal.timeout(ML_SERVICE_TIMEOUT_MS),
+      });
+
+      if (res.ok) {
+        return (await res.json()) as TRes;
+      }
+
+      const text = await res.text();
+      const formatted = formatErrorBody(text);
+      const shouldRetry = RETRYABLE_STATUSES.has(res.status) && attempt < ML_SERVICE_MAX_ATTEMPTS;
+
+      if (shouldRetry) {
+        await sleep(ML_SERVICE_RETRY_BASE_MS * attempt);
+        continue;
+      }
+
+      throw new Error(`ML service ${path} failed (${res.status}) on attempt ${attempt} [${targetUrl}]: ${formatted}`);
+    } catch (error) {
+      if (error instanceof Error) {
+        lastError = error;
+      } else {
+        lastError = new Error(String(error));
+      }
+
+      const shouldRetry = attempt < ML_SERVICE_MAX_ATTEMPTS && isRetryableFetchError(error);
+      if (!shouldRetry) {
+        break;
+      }
+
+      await sleep(ML_SERVICE_RETRY_BASE_MS * attempt);
+    }
   }
-  return (await res.json()) as TRes;
+
+  throw new Error(`ML service ${path} unavailable after ${ML_SERVICE_MAX_ATTEMPTS} attempts: ${lastError?.message ?? "unknown error"}`);
 }
 
 export async function transcribeWhisper(input: {
