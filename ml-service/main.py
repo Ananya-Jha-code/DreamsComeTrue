@@ -2,14 +2,13 @@ from __future__ import annotations
 
 import base64
 import os
+import time
 from pathlib import Path
 from typing import Any, Literal
 
 import httpx
 from dotenv import load_dotenv
 from fastapi import FastAPI, Header, HTTPException
-from google import genai
-from google.genai import types
 from pydantic import BaseModel
 
 load_dotenv(dotenv_path=Path(__file__).with_name(".env"))
@@ -152,59 +151,123 @@ def cleanup(req: CleanupRequest, x_ml_token: str | None = Header(default=None)) 
     )
 
 
-def _resolve_imagen_api_key() -> str:
-    for key_name in (
-        "IMAGEN_API_KEY",
-        "GEMINI_API_KEY",
-        "GOOGLE_AI_STUDIO_API_KEY",
-        "GOOGLE_API_KEY",
-    ):
+def _resolve_flux_api_key() -> str:
+    for key_name in ("FLUX_API_KEY", "REPLICATE_API_TOKEN"):
         value = os.getenv(key_name, "").strip()
         if value:
             return value
-    raise HTTPException(status_code=500, detail="Missing IMAGEN_API_KEY (or GEMINI_API_KEY/GOOGLE_API_KEY)")
+    raise HTTPException(status_code=500, detail="Missing FLUX_API_KEY (or REPLICATE_API_TOKEN)")
 
 
-def _generate_illustration_with_imagen(
+def _parse_flux_model() -> tuple[str, str]:
+    model_ref = os.getenv("FLUX_MODEL", "black-forest-labs/FLUX.1-schnell").strip()
+    if "/" not in model_ref:
+        raise HTTPException(
+            status_code=500,
+            detail="FLUX_MODEL must be in owner/model format (for example black-forest-labs/FLUX.1-schnell)",
+        )
+    owner, name = model_ref.split("/", 1)
+    owner = owner.strip()
+    name = name.strip()
+    if not owner or not name:
+        raise HTTPException(
+            status_code=500,
+            detail="FLUX_MODEL must include both owner and model name",
+        )
+    return owner, name
+
+
+def _generate_illustration_with_flux(
     prompt: str,
     aspect_ratio: str = "3:4",
     output_mime_type: str = "image/jpeg",
 ) -> dict[str, str]:
-    api_key = _resolve_imagen_api_key()
-    model = os.getenv("IMAGEN_MODEL", "imagen-4.0-generate-001")
+    api_key = _resolve_flux_api_key()
+    owner, model_name = _parse_flux_model()
+    model_ref = f"{owner}/{model_name}"
 
-    client = genai.Client(api_key=api_key)
+    output_format = "jpg" if output_mime_type == "image/jpeg" else "png"
+    timeout_seconds = float(os.getenv("FLUX_TIMEOUT_SECONDS", "120"))
+
+    create_url = f"https://api.replicate.com/v1/models/{owner}/{model_name}/predictions"
+    headers = {
+        "Authorization": f"Bearer {api_key}",
+        "Content-Type": "application/json",
+    }
+    create_payload = {
+        "input": {
+            "prompt": prompt,
+            "aspect_ratio": aspect_ratio,
+            "output_format": output_format,
+            "num_outputs": 1,
+        }
+    }
+
     try:
-        response = client.models.generate_images(
-            model=model,
-            prompt=prompt,
-            config=types.GenerateImagesConfig(
-                number_of_images=1,
-                aspect_ratio=aspect_ratio,
-                output_mime_type=output_mime_type,
-            ),
-        )
-        generated = getattr(response, "generated_images", None) or []
-        if not generated:
-            raise HTTPException(status_code=502, detail="Imagen did not return a generated image")
+        with httpx.Client(timeout=timeout_seconds) as client:
+            create_res = client.post(create_url, headers=headers, json=create_payload)
+            if create_res.status_code >= 400:
+                raise HTTPException(
+                    status_code=502,
+                    detail=f"FLUX prediction create failed ({create_res.status_code}): {create_res.text}",
+                )
 
-        image = generated[0].image
-        image_bytes = getattr(image, "image_bytes", None)
-        if not image_bytes:
-            raise HTTPException(status_code=502, detail="Imagen response did not include image bytes")
+            prediction = create_res.json()
+            prediction_id = str(prediction.get("id", "")).strip()
+            if not prediction_id:
+                raise HTTPException(status_code=502, detail="FLUX response missing prediction id")
 
-        mime_type = getattr(image, "mime_type", None) or output_mime_type
-        encoded = base64.b64encode(image_bytes).decode("utf-8")
+            status_url = f"https://api.replicate.com/v1/predictions/{prediction_id}"
+            started = time.monotonic()
+            while True:
+                status = str(prediction.get("status", "")).strip().lower()
+                if status == "succeeded":
+                    break
+                if status in {"failed", "canceled"}:
+                    err = prediction.get("error") or "unknown error"
+                    raise HTTPException(status_code=502, detail=f"FLUX prediction failed: {err}")
+                if time.monotonic() - started > timeout_seconds:
+                    raise HTTPException(status_code=504, detail="FLUX prediction timed out")
+
+                time.sleep(0.9)
+                poll_res = client.get(status_url, headers=headers)
+                if poll_res.status_code >= 400:
+                    raise HTTPException(
+                        status_code=502,
+                        detail=f"FLUX prediction poll failed ({poll_res.status_code}): {poll_res.text}",
+                    )
+                prediction = poll_res.json()
+
+            output = prediction.get("output")
+            image_url = ""
+            if isinstance(output, list) and output:
+                image_url = str(output[0])
+            elif isinstance(output, str):
+                image_url = output
+
+            image_url = image_url.strip()
+            if not image_url:
+                raise HTTPException(status_code=502, detail="FLUX output did not include an image URL")
+
+            image_res = client.get(image_url)
+            if image_res.status_code >= 400:
+                raise HTTPException(
+                    status_code=502,
+                    detail=f"FLUX image download failed ({image_res.status_code})",
+                )
+
+        mime_type = image_res.headers.get("content-type") or output_mime_type
+        encoded = base64.b64encode(image_res.content).decode("utf-8")
         return {
             "image_base64": encoded,
             "mime_type": mime_type,
-            "provider": "google-ai-studio-imagen",
-            "model": model,
+            "provider": "replicate-flux",
+            "model": model_ref,
         }
     except HTTPException:
         raise
     except Exception as exc:
-        raise HTTPException(status_code=502, detail=f"Imagen generation failed: {exc}") from exc
+        raise HTTPException(status_code=502, detail=f"FLUX generation failed: {exc}") from exc
 
 
 @app.post("/v1/illustration", response_model=IllustrationResponse)
@@ -214,7 +277,7 @@ def illustration(req: IllustrationRequest, x_ml_token: str | None = Header(defau
     if not prompt:
         raise HTTPException(status_code=400, detail="prompt is required")
 
-    out = _generate_illustration_with_imagen(prompt, req.aspect_ratio, req.output_mime_type)
+    out = _generate_illustration_with_flux(prompt, req.aspect_ratio, req.output_mime_type)
     return IllustrationResponse(
         image_base64=out["image_base64"],
         mime_type=out["mime_type"],

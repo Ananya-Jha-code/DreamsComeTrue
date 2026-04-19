@@ -10,7 +10,7 @@ Web app scaffold for the PRD pipeline: spoken story -> narrated illustrated pict
 | Backend | Node.js + Express + FastAPI (ML calls) |
 | Transcription | Whisper large-v3 on Modal or Replicate |
 | Cleanup / Planning / Rewrite | K2 Think primary, Gemini 2.5 Pro fallback |
-| Image generation | Imagen primary for page illustrations, local SVG fallback |
+| Image generation | FLUX.1-schnell primary for page illustrations, local SVG fallback |
 | Narration audio | Gemini 2.5 native multimodal TTS |
 | Ambient audio | Gemini 2.5 multimodal audio |
 | Assembly | Page-by-page image composition |
@@ -23,7 +23,7 @@ Web app scaffold for the PRD pipeline: spoken story -> narrated illustrated pict
 |---|---|
 - `frontend/` | React + Vite + Tailwind UI |
 - `backend/` | Express public API, job orchestration |
-- `ml-service/` | FastAPI internal ML gateway (Whisper/K2/Imagen adapters) |
+- `ml-service/` | FastAPI internal ML gateway (Whisper/K2/FLUX adapters) |
 
 ## Service Boundaries
 
@@ -31,7 +31,7 @@ Web app scaffold for the PRD pipeline: spoken story -> narrated illustrated pict
 - FastAPI (`ml-service`) is internal-only ML gateway:
   - `/v1/transcribe` (ElevenLabs speech-to-text)
   - `/v1/cleanup` (K2 Think paragraph planning)
-  - `/v1/illustration` (Imagen page art)
+  - `/v1/illustration` (FLUX page art)
 
 ## APIs (Express)
 
@@ -103,7 +103,7 @@ docker compose down
 - Put your ElevenLabs API key in `ml-service/.env` as `ELEVENLABS_API_KEY=...`
 - Never commit real keys.
 
-For the current transcription flow, `ELEVENLABS_API_KEY` is the only required ML service secret. `K2THINK_API_KEY` enables paragraph planning and `IMAGEN_API_KEY` enables illustration generation.
+For the current transcription flow, `ELEVENLABS_API_KEY` is the only required ML service secret. `K2THINK_API_KEY` enables paragraph planning and `FLUX_API_KEY` (or `REPLICATE_API_TOKEN`) enables illustration generation.
 
 ## Build
 
