@@ -33,16 +33,16 @@ DreamsComeTrue turns a spoken story into a multi-page illustrated picture book. 
 
 ```mermaid
 flowchart LR
-	user[User] --> ui[Frontend<br/>React + Vite + Tailwind + Three.js]
-	ui -- POST /api/jobs, polling --> api[Backend<br/>Express + TypeScript + Zod]
-	api -- x-ml-token --> ml[ML Service<br/>FastAPI + Python + httpx]
+  user[User] --> ui[Frontend]
+  ui -->|POST /api/jobs| api[Backend]
+  api -->|x-ml-token| ml[ML Service]
 
-	ml --> stt[ElevenLabs Scribe v2<br/>Transcription]
-	ml --> k2[K2 Think v2<br/>Cleanup + page structuring]
-	ml --> img[Together FLUX<br/>Illustration generation]
+  ml --> stt[ElevenLabs]
+  ml --> k2[K2 Think]
+  ml --> img[Together FLUX]
 
-	api -. stores status .-> store[Job store]
-	ui -. renders pages .-> book[Picture-book UI]
+  api -. stores status .-> store[Job store]
+  ui -. renders pages .-> book[Picture-book UI]
 ```
 
 The frontend posts audio and filter choices to the backend. The backend creates a job, tracks its state, and calls the ML service. The ML service keeps provider credentials out of the browser and returns structured results that the UI can render incrementally.
