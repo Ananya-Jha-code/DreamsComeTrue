@@ -29,6 +29,9 @@ export default function BookPage() {
   const [job, setJob] = useState<JobRecord | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [currentPage, setCurrentPage] = useState(0);
+  const [isFlipping, setIsFlipping] = useState(false);
+  const [flipDirection, setFlipDirection] = useState<"next" | "prev">("next");
 
   const cursorRef = useRef<HTMLDivElement | null>(null);
   const ringRef = useRef<HTMLDivElement | null>(null);
@@ -36,6 +39,7 @@ export default function BookPage() {
   const mouseYRef = useRef(0);
   const ringXRef = useRef(0);
   const ringYRef = useRef(0);
+  const flipTimerRef = useRef<number | null>(null);
 
   useEffect(() => {
     const onMove = (event: MouseEvent) => {
@@ -107,9 +111,55 @@ export default function BookPage() {
     };
   }, [jobId]);
 
+  useEffect(() => {
+    return () => {
+      if (flipTimerRef.current !== null) {
+        window.clearTimeout(flipTimerRef.current);
+      }
+    };
+  }, []);
+
   const storyTitle = job?.result?.bookTitle ?? "Your picture book";
   const pages: PictureBookPage[] = job?.result?.pages ?? [];
   const paragraphs = job?.result?.pictureBookParagraphs ?? pages.map((page) => page.paragraph);
+
+  useEffect(() => {
+    setCurrentPage(0);
+    setIsFlipping(false);
+  }, [jobId, pages.length]);
+
+  const canGoBack = currentPage > 0;
+  const canGoForward = currentPage < pages.length - 1;
+  const activePage = pages[currentPage] ?? null;
+  const activeParagraph = activePage?.paragraph ?? paragraphs[currentPage] ?? "";
+
+  const turnPage = (direction: "next" | "prev") => {
+    if (isFlipping) return;
+    if (direction === "next" && !canGoForward) return;
+    if (direction === "prev" && !canGoBack) return;
+
+    setFlipDirection(direction);
+    setIsFlipping(true);
+
+    if (flipTimerRef.current !== null) {
+      window.clearTimeout(flipTimerRef.current);
+    }
+
+    flipTimerRef.current = window.setTimeout(() => {
+      setCurrentPage((current) => (direction === "next" ? current + 1 : current - 1));
+      setIsFlipping(false);
+      flipTimerRef.current = null;
+    }, 460);
+  };
+
+  useEffect(() => {
+    const onKeyDown = (event: KeyboardEvent) => {
+      if (event.key === "ArrowRight") turnPage("next");
+      if (event.key === "ArrowLeft") turnPage("prev");
+    };
+    window.addEventListener("keydown", onKeyDown);
+    return () => window.removeEventListener("keydown", onKeyDown);
+  });
 
   return (
     <>
@@ -127,20 +177,41 @@ export default function BookPage() {
         .bk-btn{display:inline-flex;align-items:center;justify-content:center;padding:.72rem 1.15rem;border-radius:999px;border:1px solid rgba(201,168,76,.45);background:transparent;color:#e8dfd0;font-size:.72rem;letter-spacing:.12em;text-transform:uppercase;text-decoration:none;cursor:none;}
         .bk-btn:hover{background:#c9a84c;color:#0d1628;}
         .bk-panel{border:1px solid rgba(232,223,208,.1);border-radius:26px;background:rgba(12,20,38,.56);box-shadow:0 24px 70px rgba(0,0,0,.32);padding:1.1rem;}
-        .bk-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:1rem;}
-        .bk-card{border:1px solid rgba(232,223,208,.1);border-radius:20px;background:rgba(8,12,22,.45);overflow:hidden;display:flex;flex-direction:column;}
-        .bk-art{position:relative;aspect-ratio:4/5;background:#111a2d;}
+        .bk-reader{display:flex;flex-direction:column;gap:1rem;}
+        .bk-book{position:relative;perspective:1800px;}
+        .bk-spread{position:relative;display:grid;grid-template-columns:1fr 1fr;min-height:min(70vh,620px);border-radius:22px;overflow:hidden;background:linear-gradient(180deg,#f1e3c8 0%,#ebd8b4 55%,#ddc49a 100%);box-shadow:0 28px 60px rgba(0,0,0,.3);transform-style:preserve-3d;}
+        .bk-spread::before{content:'';position:absolute;left:50%;top:0;bottom:0;width:1px;background:linear-gradient(180deg,rgba(90,63,23,.15),rgba(90,63,23,.35),rgba(90,63,23,.12));transform:translateX(-50%);}
+        .bk-spread.is-flipping-next{animation:bk-flip-next .46s ease;}
+        .bk-spread.is-flipping-prev{animation:bk-flip-prev .46s ease;}
+        .bk-leaf{display:flex;flex-direction:column;min-height:100%;padding:1.2rem;}
+        .bk-leaf-left{border-right:1px solid rgba(99,71,28,.15);background:linear-gradient(90deg,rgba(255,250,239,.9) 0%,rgba(252,244,228,.8) 100%);}
+        .bk-leaf-right{position:relative;background:linear-gradient(90deg,rgba(248,237,214,.8) 0%,rgba(238,220,186,.95) 100%);}
+        .bk-art{position:relative;aspect-ratio:4/5;background:#111a2d;border-radius:14px;overflow:hidden;box-shadow:0 16px 36px rgba(0,0,0,.22);}
         .bk-art img{width:100%;height:100%;object-fit:cover;display:block;}
         .bk-num{position:absolute;top:12px;left:12px;padding:.32rem .62rem;border-radius:999px;background:rgba(8,12,22,.7);font-size:.64rem;letter-spacing:.14em;text-transform:uppercase;color:#c9a84c;}
-        .bk-copy{padding:.95rem;display:flex;flex-direction:column;gap:.75rem;}
-        .bk-copy p{margin:0;line-height:1.75;color:rgba(232,223,208,.86);font-size:.95rem;}
-        .bk-note{font-size:.68rem;letter-spacing:.13em;text-transform:uppercase;color:rgba(232,223,208,.46);}
+        .bk-story-kicker{font-size:.62rem;letter-spacing:.18em;text-transform:uppercase;color:rgba(72,52,20,.66);}
+        .bk-copy{display:flex;flex-direction:column;justify-content:space-between;gap:.95rem;height:100%;}
+        .bk-copy p{margin:0;color:#2a1c12;line-height:1.92;font-size:clamp(.95rem,1.25vw,1.12rem);font-family:'Cormorant Garamond',serif;font-weight:500;}
+        .bk-note{font-size:.65rem;letter-spacing:.12em;text-transform:uppercase;color:rgba(50,35,12,.52);}
+        .bk-reader-footer{display:flex;align-items:center;justify-content:space-between;gap:.8rem;flex-wrap:wrap;}
+        .bk-nav{display:flex;align-items:center;gap:.7rem;}
+        .bk-nav-btn{min-width:120px;}
+        .bk-nav-btn[disabled]{opacity:.35;pointer-events:none;}
+        .bk-page-indicator{font-size:.72rem;letter-spacing:.14em;text-transform:uppercase;color:rgba(232,223,208,.72);}
+        @keyframes bk-flip-next{0%{transform:rotateY(0deg) scale(1);}40%{transform:rotateY(-14deg) scale(.99);}100%{transform:rotateY(0deg) scale(1);}}
+        @keyframes bk-flip-prev{0%{transform:rotateY(0deg) scale(1);}40%{transform:rotateY(14deg) scale(.99);}100%{transform:rotateY(0deg) scale(1);}}
         .bk-summary{margin-top:1rem;border:1px solid rgba(232,223,208,.1);border-radius:20px;background:rgba(8,12,22,.35);padding:1rem;}
         .bk-summary h2{margin:0 0 .7rem;font-size:.72rem;letter-spacing:.17em;text-transform:uppercase;color:#c9a84c;}
         .bk-summary ol{margin:0;padding-left:1.2rem;line-height:1.8;color:rgba(232,223,208,.85);}
         .bk-status{text-align:center;padding:2.2rem 1rem;border:1px solid rgba(232,223,208,.1);border-radius:20px;background:rgba(8,12,22,.36);}
         .bk-status h2{margin:0 0 .6rem;font-family:'Cormorant Garamond',serif;font-size:2rem;font-weight:400;}
         .bk-status p{margin:0;color:rgba(232,223,208,.64);line-height:1.7;}
+        @media (max-width: 860px){
+          .bk-spread{grid-template-columns:1fr;min-height:auto;}
+          .bk-spread::before{display:none;}
+          .bk-leaf-left{border-right:none;border-bottom:1px solid rgba(99,71,28,.15);}
+          .bk-nav-btn{min-width:0;}
+        }
       `}</style>
 
       <div className="bk-cursor" ref={cursorRef} />
@@ -172,20 +243,48 @@ export default function BookPage() {
           ) : (
             <>
               <div className="bk-panel">
-                <div className="bk-grid">
-                  {pages.map((page) => (
-                    <article className="bk-card" key={page.index}>
-                      <div className="bk-art">
-                        <span className="bk-num">Page {page.index + 1}</span>
-                        <img src={page.imageDataUrl} alt={`Illustration for page ${page.index + 1}`} />
-                      </div>
-                      <div className="bk-copy">
-                        <p>{page.paragraph}</p>
-                        <span className="bk-note">{page.imageProvider}{page.imageModel ? ` · ${page.imageModel}` : ""}</span>
-                        <a className="bk-btn" href={page.imageDataUrl} download={`${slugify(storyTitle)}-page-${String(page.index + 1).padStart(2, "0")}.jpg`}>Download page</a>
-                      </div>
+                <div className="bk-reader">
+                  <div className="bk-book">
+                    <article className={`bk-spread ${isFlipping ? `is-flipping-${flipDirection}` : ""}`}>
+                      <section className="bk-leaf bk-leaf-left">
+                        <div className="bk-copy">
+                          <div style={{ display: "grid", gap: ".8rem" }}>
+                            <span className="bk-story-kicker">Page {currentPage + 1} narration</span>
+                            <p>{activeParagraph || "No paragraph was generated for this page."}</p>
+                          </div>
+                          <span className="bk-note">Use left/right arrow keys to turn pages</span>
+                        </div>
+                      </section>
+
+                      <section className="bk-leaf bk-leaf-right">
+                        {activePage ? (
+                          <>
+                            <div className="bk-art">
+                              <span className="bk-num">Page {activePage.index + 1}</span>
+                              <img src={activePage.imageDataUrl} alt={`Illustration for page ${activePage.index + 1}`} />
+                            </div>
+                            <div style={{ marginTop: ".85rem", display: "flex", justifyContent: "space-between", gap: ".6rem", flexWrap: "wrap" }}>
+                              <span className="bk-note">{activePage.imageProvider}{activePage.imageModel ? ` · ${activePage.imageModel}` : ""}</span>
+                              <a className="bk-btn" href={activePage.imageDataUrl} download={`${slugify(storyTitle)}-page-${String(activePage.index + 1).padStart(2, "0")}.jpg`}>Download page</a>
+                            </div>
+                          </>
+                        ) : (
+                          <div className="bk-status" style={{ margin: 0 }}>
+                            <h2>Missing page</h2>
+                            <p>This book page is unavailable.</p>
+                          </div>
+                        )}
+                      </section>
                     </article>
-                  ))}
+                  </div>
+
+                  <div className="bk-reader-footer">
+                    <div className="bk-nav">
+                      <button type="button" className="bk-btn bk-nav-btn" disabled={!canGoBack || isFlipping} onClick={() => turnPage("prev")}>Previous page</button>
+                      <button type="button" className="bk-btn bk-nav-btn" disabled={!canGoForward || isFlipping} onClick={() => turnPage("next")}>Next page</button>
+                    </div>
+                    <span className="bk-page-indicator">Page {Math.min(currentPage + 1, Math.max(pages.length, 1))} of {Math.max(pages.length, 1)}</span>
+                  </div>
                 </div>
               </div>
 

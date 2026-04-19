@@ -199,15 +199,41 @@ def _generate_illustration_with_flux(
         "width": width,
         "height": height,
     }
+    minimal_payload = {
+        "model": model_ref,
+        "prompt": prompt,
+    }
 
     try:
         with httpx.Client(timeout=timeout_seconds) as client:
             response = client.post(together_url, headers=headers, json=payload)
             if response.status_code >= 400:
-                raise HTTPException(
-                    status_code=502,
-                    detail=f"Together image generation failed ({response.status_code}): {response.text}",
+                body_text = response.text or ""
+                lower_text = body_text.lower()
+                can_retry_without_optional_fields = (
+                    response.status_code == 400
+                    and "steps" in lower_text
+                    and "not supported" in lower_text
                 )
+
+                # Some Together image models reject hidden/default optional fields; retry with strict minimal payload.
+                if can_retry_without_optional_fields:
+                    retry_response = client.post(together_url, headers=headers, json=minimal_payload)
+                    if retry_response.status_code < 400:
+                        response = retry_response
+                    else:
+                        raise HTTPException(
+                            status_code=502,
+                            detail=(
+                                "Together image generation failed after compatibility retry "
+                                f"({retry_response.status_code}): {retry_response.text}"
+                            ),
+                        )
+                else:
+                    raise HTTPException(
+                        status_code=502,
+                        detail=f"Together image generation failed ({response.status_code}): {body_text}",
+                    )
 
         body = response.json()
         data = body.get("data") if isinstance(body, dict) else None
