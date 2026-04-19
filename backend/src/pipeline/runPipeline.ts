@@ -1,6 +1,7 @@
 import { setStage, updateJob } from "../store/jobsStore.js";
 import {
   cleanupTranscript,
+  generateVideoFromDirectorPrompt,
   transcribeWhisper,
 } from "../services/mlServiceClient.js";
 import type { JobRecord } from "../types/job.js";
@@ -45,6 +46,19 @@ export async function runPipeline(job: JobRecord, audioBuffer?: Buffer): Promise
     directorPrompt,
   });
 
+  setStage(id, "generating_video");
+  const video = await generateVideoFromDirectorPrompt({
+    directorPrompt,
+  });
+  const videoDataUrl = `data:${video.mimeType};base64,${video.videoBase64}`;
+
+  console.log("[pipeline][video]", id, {
+    provider: video.provider,
+    model: video.model,
+    mimeType: video.mimeType,
+    bytesApprox: Math.round((video.videoBase64.length * 3) / 4),
+  });
+
   updateJob(id, {
     stage: "ready",
     result: {
@@ -52,11 +66,16 @@ export async function runPipeline(job: JobRecord, audioBuffer?: Buffer): Promise
       cleanTranscript: cleanTranscript.text,
       language: cleanTranscript.language,
       directorPrompt,
+      videoDataUrl,
+      videoMimeType: video.mimeType,
+      videoProvider: video.provider,
+      videoModel: video.model,
       rawModelJson: cleanTranscript.rawModelJson,
     },
   });
   console.log("[pipeline]", id, {
     language: cleanTranscript.language,
     hasDirectorPrompt: Boolean(directorPrompt),
+    hasVideo: Boolean(videoDataUrl),
   });
 }

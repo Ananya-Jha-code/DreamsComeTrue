@@ -2,12 +2,16 @@ from __future__ import annotations
 
 import base64
 import os
+import tempfile
+import time
 from pathlib import Path
 from typing import Any, Literal
 
 import httpx
 from dotenv import load_dotenv
 from fastapi import FastAPI, Header, HTTPException
+from google import genai
+from google.genai import types
 from pydantic import BaseModel
 
 load_dotenv(dotenv_path=Path(__file__).with_name(".env"))
@@ -48,6 +52,17 @@ class CleanupResponse(BaseModel):
     director_prompt: str
     raw_model_json: dict[str, Any]
     provider: str
+
+
+class VideoGenerateRequest(BaseModel):
+    director_prompt: str
+
+
+class VideoGenerateResponse(BaseModel):
+    video_base64: str
+    mime_type: str
+    provider: str
+    model: str
 
 
 @app.get("/health")
@@ -132,4 +147,90 @@ def cleanup(req: CleanupRequest, x_ml_token: str | None = Header(default=None)) 
         director_prompt=out["director_prompt"],
         raw_model_json=out["raw_model_json"],
         provider="k2think-k2-cleanup",
+    )
+
+
+def _resolve_veo_api_key() -> str:
+    for key_name in (
+        "VEO_API_KEY",
+        "GOOGLE_AI_STUDIO_API_KEY",
+        "GOOGLE_API_KEY",
+        "GEMINI_API_KEY",
+    ):
+        value = os.getenv(key_name, "").strip()
+        if value:
+            return value
+    raise HTTPException(status_code=500, detail="Missing VEO_API_KEY (or GOOGLE_AI_STUDIO_API_KEY/GOOGLE_API_KEY)")
+
+
+def _generate_video_with_veo(prompt: str) -> dict[str, str]:
+    api_key = _resolve_veo_api_key()
+    model = os.getenv("VEO_MODEL", "veo-2.0-generate-001")
+    aspect_ratio = os.getenv("VEO_ASPECT_RATIO", "16:9")
+    poll_seconds = float(os.getenv("VEO_POLL_SECONDS", "5"))
+    timeout_seconds = float(os.getenv("VEO_TIMEOUT_SECONDS", "300"))
+
+    client = genai.Client(api_key=api_key)
+
+    try:
+        operation = client.models.generate_videos(
+            model=model,
+            prompt=prompt,
+            config=types.GenerateVideosConfig(
+                number_of_videos=1,
+                aspect_ratio=aspect_ratio,
+            ),
+        )
+
+        started_at = time.monotonic()
+        while not operation.done:
+            if time.monotonic() - started_at > timeout_seconds:
+                raise HTTPException(status_code=504, detail="Timed out waiting for Veo video generation")
+            time.sleep(poll_seconds)
+            operation = client.operations.get(operation)
+
+        response = getattr(operation, "response", None)
+        generated = getattr(response, "generated_videos", None)
+        if not generated:
+            raise HTTPException(status_code=502, detail="Veo did not return a generated video")
+
+        video_ref = generated[0].video
+        client.files.download(file=video_ref)
+
+        with tempfile.NamedTemporaryFile(suffix=".mp4", delete=False) as tmp:
+            tmp_path = Path(tmp.name)
+        try:
+            video_ref.save(tmp_path)
+            encoded = base64.b64encode(tmp_path.read_bytes()).decode("utf-8")
+        finally:
+            try:
+                tmp_path.unlink(missing_ok=True)
+            except OSError:
+                pass
+
+        return {
+            "video_base64": encoded,
+            "mime_type": "video/mp4",
+            "provider": "google-ai-studio-veo",
+            "model": model,
+        }
+    except HTTPException:
+        raise
+    except Exception as exc:
+        raise HTTPException(status_code=502, detail=f"Veo generation failed: {exc}") from exc
+
+
+@app.post("/v1/video", response_model=VideoGenerateResponse)
+def generate_video(req: VideoGenerateRequest, x_ml_token: str | None = Header(default=None)) -> VideoGenerateResponse:
+    _check_token(x_ml_token)
+    prompt = req.director_prompt.strip()
+    if not prompt:
+        raise HTTPException(status_code=400, detail="director_prompt is required")
+
+    out = _generate_video_with_veo(prompt)
+    return VideoGenerateResponse(
+        video_base64=out["video_base64"],
+        mime_type=out["mime_type"],
+        provider=out["provider"],
+        model=out["model"],
     )

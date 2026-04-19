@@ -66,3 +66,30 @@ export async function cleanupTranscript(input: {
   };
 }
 
+export async function generateVideoFromDirectorPrompt(input: {
+  directorPrompt: string;
+}): Promise<{
+  videoBase64: string;
+  mimeType: string;
+  provider: string;
+  model: string;
+}> {
+  const res = await mlPost<
+    { director_prompt: string },
+    {
+      video_base64: string;
+      mime_type: string;
+      provider: string;
+      model: string;
+    }
+  >("/v1/video", {
+    director_prompt: input.directorPrompt,
+  });
+  return {
+    videoBase64: res.video_base64,
+    mimeType: res.mime_type,
+    provider: res.provider,
+    model: res.model,
+  };
+}
+

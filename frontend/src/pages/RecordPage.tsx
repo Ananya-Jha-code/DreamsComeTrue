@@ -224,7 +224,7 @@ export default function RecordPage() {
 
       await pollJobUntilFinished(created.jobId);
     } catch (err) {
-      setSubmitError(err instanceof Error ? err.message : "Unable to generate prompt.");
+      setSubmitError(err instanceof Error ? err.message : "Unable to generate video.");
     } finally {
       setGenerating(false);
     }
@@ -266,7 +266,7 @@ export default function RecordPage() {
           {done ? <><em style={{fontStyle:"italic",color:"#c9a84c"}}>Beautiful.</em> Ready to weave.</> : recording ? <>Listening<em style={{fontStyle:"italic",color:"#c9a84c"}}>…</em></> : <>Tell your <em style={{fontStyle:"italic",color:"#c9a84c"}}>story</em></>}
         </h1>
         <p style={{fontSize:".85rem",color:"rgba(232,223,208,.38)",maxWidth:400,lineHeight:1.6,marginBottom:"3rem"}}>
-          {done ? "Your story has been captured. Generate the director prompt below." : recording ? "Speak naturally. Pause whenever you like. Tap again when you're done." : "Tap the button below and speak. We'll handle the rest."}
+          {done ? "Your story has been captured. Generate your Veo video below." : recording ? "Speak naturally. Pause whenever you like. Tap again when you're done." : "Tap the button below and speak. We'll handle the rest."}
         </p>
 
         {micError && (
@@ -306,7 +306,7 @@ export default function RecordPage() {
             </button>
             <button type="button" className="rc-btn" onClick={handleGeneratePrompt} disabled={generating} style={{opacity: generating ? 0.7 : 1, cursor: generating ? "wait" : "pointer"}}>
               <span className="rc-dot" />
-              {generating ? "Generating..." : "Generate Prompt"}
+              {generating ? "Generating..." : "Generate Video"}
             </button>
           </div>
         )}
@@ -325,6 +325,22 @@ export default function RecordPage() {
               <div>
                 <p style={{margin:"0 0 .35rem",fontSize:".7rem",letterSpacing:".1em",textTransform:"uppercase",color:"rgba(232,223,208,.5)"}}>Director prompt</p>
                 <p style={{margin:0,fontSize:".85rem",lineHeight:1.6,color:"rgba(232,223,208,.92)"}}>{jobResult.directorPrompt}</p>
+              </div>
+            )}
+            {jobResult?.videoDataUrl && (
+              <div style={{marginTop:"1rem"}}>
+                <p style={{margin:"0 0 .5rem",fontSize:".7rem",letterSpacing:".1em",textTransform:"uppercase",color:"rgba(232,223,208,.5)"}}>Generated video</p>
+                <video
+                  controls
+                  playsInline
+                  src={jobResult.videoDataUrl}
+                  style={{width:"100%",borderRadius:12,border:"1px solid rgba(201,168,76,.2)",background:"#000"}}
+                />
+                {(jobResult.videoProvider || jobResult.videoModel) && (
+                  <p style={{margin:".5rem 0 0",fontSize:".68rem",letterSpacing:".08em",textTransform:"uppercase",color:"rgba(232,223,208,.45)"}}>
+                    {jobResult.videoProvider ?? "provider"}{jobResult.videoModel ? ` • ${jobResult.videoModel}` : ""}
+                  </p>
+                )}
               </div>
             )}
           </div>

@@ -4,6 +4,7 @@ export type JobStage =
   | "queued"
   | "transcribing"
   | "cleaning"
+  | "generating_video"
   | "ready"
   | "failed";
 
@@ -22,6 +23,13 @@ export interface JobRecord {
     language?: string;
     /** K2-produced director prompt */
     directorPrompt?: string;
+    /** Data URL safe to render directly in browser video tag */
+    videoDataUrl?: string;
+    /** MIME type returned by Veo generation */
+    videoMimeType?: string;
+    /** Video provider/model metadata */
+    videoProvider?: string;
+    videoModel?: string;
     /** K2 parse payload (JSON object) for debugging */
     rawModelJson?: Record<string, unknown>;
   };
