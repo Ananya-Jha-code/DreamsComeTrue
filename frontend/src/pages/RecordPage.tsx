@@ -1,7 +1,7 @@
 import * as React from "react";
 import { useLocation, useNavigate } from "react-router-dom";
 import { defaultFilters, getFilterLabel } from "../filters";
-import { createJob, getJob } from "../api/jobs";
+import { createJob } from "../api/jobs";
 import type { JobRecord, JobStage, PictureBookPage, StoryFilters } from "../types/job";
 
 type StateSetter<T> = (value: T | ((current: T) => T)) => void;
@@ -353,23 +353,6 @@ export default function RecordPage() {
     };
   }, []);
 
-  const pollJobUntilFinished = async (id: string) => {
-    for (let attempt = 0; attempt < 240; attempt += 1) {
-      const job = await getJob(id);
-      setJobStage(job.stage);
-      setJobResult(job.result ?? null);
-
-      if (job.stage === "ready") return;
-      if (job.stage === "failed") {
-        throw new Error(job.error ?? "Pipeline failed.");
-      }
-
-      await new Promise((resolve) => setTimeout(resolve, 1200));
-    }
-
-    throw new Error("The picture book is still generating. Please wait and try again.");
-  };
-
   const handleGenerateBook = async () => {
     if (!audioBlob) {
       setSubmitError("Please record your story first.");
@@ -381,10 +364,7 @@ export default function RecordPage() {
       setGenerating(true);
 
       const created = await createJob(audioBlob, filters);
-      setJobId(created.jobId);
-      setJobStage(created.stage as JobStage);
-
-      await pollJobUntilFinished(created.jobId);
+      navigate("/loading", { state: { jobId: created.jobId } });
     } catch (error) {
       setSubmitError(error instanceof Error ? error.message : "Unable to generate picture book.");
     } finally {
