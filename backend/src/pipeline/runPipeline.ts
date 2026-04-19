@@ -99,7 +99,7 @@ function buildStoryContinuityBrief(input: {
 }
 
 function buildNoTextPrompt(basePrompt: string): string {
-  return `${basePrompt}\nABSOLUTE RULE: zero text in the image. No letters, no numbers, no symbols, no signage, no labels.`;
+  return `${basePrompt}\nABSOLUTE RULE: zero readable text in the image. Do not render letters, numbers, words, labels, logos, signage, captions, UI text, speech bubbles, or watermarks. If an object would normally contain text (book cover, sign, poster, screen), keep it blank or unreadable.`;
 }
 
 function buildFluxDirectorPrompt(input: {
@@ -141,6 +141,8 @@ function buildFluxDirectorPrompt(input: {
     "",
     "STRICT EXCLUSIONS",
     "No text, letters, words, numbers, captions, speech bubbles, signs, logos, labels, UI, or watermarks.",
+    "Do not place the story title or any written typography anywhere on the page.",
+    "If text-bearing objects appear, keep them blank, abstract, or illegible.",
   ].join("\n");
 }
 
