@@ -74,7 +74,7 @@ export default function RecordPage() {
         .rc-ring{position:fixed;width:34px;height:34px;border:1px solid rgba(201,168,76,.35);border-radius:50%;pointer-events:none;z-index:9998;}
         @keyframes rc-pulse{0%,100%{box-shadow:0 0 0 0 rgba(201,168,76,.4)}50%{box-shadow:0 0 0 20px rgba(201,168,76,0)}}
         @keyframes rc-up{from{opacity:0;transform:translateY(20px)}to{opacity:1;transform:translateY(0)}}
-        .rc-record-btn{width:88px;height:88px;border-radius:50%;border:2px solid rgba(201,168,76,.5);background:rgba(201,168,76,.08);display:flex;align-items:center;justify-content:center;cursor:none;transition:all .3s ease;position:relative;}
+        .rc-record-btn{width:88px;height:88px;border-radius:50%;border:2px solid rgba(201,168,76,.5);background:rgba(201,168,76,.08);display:flex;align-items:center;justify-content:center;cursor:none;transition:all .3s ease;position:relative;margin:0 auto;}
         .rc-record-btn:hover{background:rgba(201,168,76,.15);border-color:rgba(201,168,76,.8);}
         .rc-record-btn.active{border-color:#c9a84c;background:rgba(201,168,76,.2);animation:rc-pulse 1.5s ease-in-out infinite;}
         .rc-pill{font-size:.7rem;padding:.3rem .8rem;border:1px solid rgba(232,223,208,.1);border-radius:100px;color:rgba(232,223,208,.45);letter-spacing:.04em;font-family:'Instrument Sans',sans-serif;}
