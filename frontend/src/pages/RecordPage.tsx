@@ -157,7 +157,7 @@ export default function RecordPage() {
     }
 
     if (mediaStreamRef.current) {
-      mediaStreamRef.current.getTracks().forEach((track) => track.stop());
+      mediaStreamRef.current.getTracks().forEach((track: MediaStreamTrack) => track.stop());
       mediaStreamRef.current = null;
     }
 
@@ -204,7 +204,7 @@ export default function RecordPage() {
         mediaRecorderRef.current.stop();
       }
       if (mediaStreamRef.current) {
-        mediaStreamRef.current.getTracks().forEach((track) => track.stop());
+        mediaStreamRef.current.getTracks().forEach((track: MediaStreamTrack) => track.stop());
       }
       if (audioUrlRef.current) {
         URL.revokeObjectURL(audioUrlRef.current);
@@ -383,7 +383,7 @@ export default function RecordPage() {
           )}
 
           <div style={{ display: "flex", flexWrap: "wrap", gap: ".5rem", justifyContent: "center", marginTop: "1.2rem" }}>
-            {(["visualStyle", "narratorVoice", "readingLevel", "tone", "pacing"] as (keyof StoryFilters)[]).map((key) => (
+            {(["visualStyle", "readingLevel", "tone"] as (keyof StoryFilters)[]).map((key) => (
               <span key={key} className="pb-pill">
                 {getFilterLabel(key, filters[key])}
               </span>

@@ -15,14 +15,6 @@ const FILTER_LABELS: Record<string, Record<string, string>> = {
     charcoal: "Charcoal Sketch",
     crayon: "Crayon Drawing",
   },
-  narratorVoice: {
-    warm_mother: "Warm Mother",
-    wise_grandfather: "Wise Grandfather",
-    playful_sister: "Playful Sister",
-    gentle_father: "Gentle Father",
-    mysterious_narrator: "Mysterious Narrator",
-    kid_narrator: "Kid Narrator",
-  },
   readingLevel: {
     toddler: "Toddler",
     early_reader: "Early Reader",
@@ -35,11 +27,6 @@ const FILTER_LABELS: Record<string, Record<string, string>> = {
     whimsical: "Whimsical",
     mysterious: "Mysterious",
     tender: "Tender",
-  },
-  pacing: {
-    unhurried: "Unhurried",
-    natural: "Natural",
-    brisk: "Brisk",
   },
 };
 
@@ -152,10 +139,8 @@ export async function runPipeline(job: JobRecord, audioBuffer?: Buffer): Promise
       `Illustrate page ${index + 1} of ${paragraphs.length} for a children's picture book titled "${bookTitle}".`,
       `Paragraph: ${paragraph}`,
       `Global style: ${labelFilter("visualStyle", job.filters.visualStyle)}.`,
-      `Narration feel: ${labelFilter("narratorVoice", job.filters.narratorVoice)}.`,
       `Reading level: ${labelFilter("readingLevel", job.filters.readingLevel)}.`,
       `Tone: ${labelFilter("tone", job.filters.tone)}.`,
-      `Pacing: ${labelFilter("pacing", job.filters.pacing)}.`,
       "Compose as a full-page storybook illustration with strong foreground, middle ground, and background depth.",
       "Keep characters visually consistent across pages and avoid any text, captions, frames, or watermarks.",
       "The page should feel warm, readable, and directly connected to the paragraph.",

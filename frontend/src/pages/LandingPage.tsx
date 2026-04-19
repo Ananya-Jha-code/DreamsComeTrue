@@ -144,10 +144,10 @@ export default function LandingPage() {
             <h2 className="ll-h2 ll-reveal">Speak. We'll <em>handle</em><br />the rest.</h2>
             <div className="ll-steps">
               {[
-                {n:"I",   title:"Set the scene",   desc:"Choose visual style, narrator voice, reading level, tone, and pacing. Sensible defaults are ready."},
+                {n:"I",   title:"Set the scene",   desc:"Choose visual style, reading level, and tone. Sensible defaults are ready."},
                 {n:"II",  title:"Tell your story",  desc:"Speak naturally. Pause. Wander. We transcribe, clean artifacts, and find the story inside your words."},
                 {n:"III", title:"Watch it weave",   desc:"Your words transform into page art — sketches bloom, spreads paint themselves."},
-                {n:"IV",  title:"Storybook finish",  desc:"A fully narrated illustrated book. AI voice, AI visuals, and page-by-page pacing."},
+                {n:"IV",  title:"Storybook finish",  desc:"A fully illustrated book with one page per story beat — your words, page by page."},
               ].map(s => (
                 <div className="ll-step ll-reveal" key={s.n}>
                   <div className="ll-step-num">{s.n}</div>
@@ -191,10 +191,10 @@ export default function LandingPage() {
         <section className="ll-quote-section">
           <p className="ll-big-quote ll-reveal">"A story doesn't have <em>one correct form</em>.<br />Lullaby makes that literal."</p>
           <p className="ll-quote-attr ll-reveal">Product Philosophy</p>
-          <div className="ll-stat-row ll-reveal">
-            <div className="ll-stat"><span className="ll-stat-num">2,160</span><span className="ll-stat-label">Unique picture book combinations<br />from one spoken story</span></div>
+            <div className="ll-stat-row ll-reveal">
+            <div className="ll-stat"><span className="ll-stat-num">120</span><span className="ll-stat-label">Unique picture book combinations<br />from one spoken story</span></div>
             <div className="ll-stat"><span className="ll-stat-num">&lt;90s</span><span className="ll-stat-label">From spoken words<br />to finished book</span></div>
-            <div className="ll-stat"><span className="ll-stat-num">5</span><span className="ll-stat-label">Independent filter axes<br />you control</span></div>
+            <div className="ll-stat"><span className="ll-stat-num">3</span><span className="ll-stat-label">Independent filter axes<br />you control</span></div>
           </div>
         </section>
 
@@ -208,9 +208,8 @@ export default function LandingPage() {
             <div className="ll-filters-grid ll-reveal">
               {[
                 {axis:"Axis I",   name:"Visual Style",  count:"6",   pills:["Watercolor Storybook","Pixar / 3D","Studio Ghibli","Paper Cutout","Charcoal Sketch","Crayon Drawing"], active:0},
-                {axis:"Axis II",  name:"Narrator Voice", count:"6",   pills:["Warm Mother","Wise Grandfather","Playful Sister","Gentle Father","Mysterious Narrator","Kid Narrator"], active:0},
-                {axis:"Axis III", name:"Reading Level",  count:"4",   pills:["Toddler (2–3)","Early Reader (4–6)","Grade School (7–10)","Advanced (11+)"], active:1},
-                {axis:"Axis IV–V",name:"Tone & Pacing",  count:"5×3", pills:["Cozy","Adventurous","Whimsical","Mysterious","Tender","Unhurried","Natural","Brisk"], active:0},
+                {axis:"Axis II", name:"Reading Level",  count:"4",   pills:["Toddler (2–3)","Early Reader (4–6)","Grade School (7–10)","Advanced (11+)"], active:1},
+                {axis:"Axis III",name:"Tone",            count:"5",   pills:["Cozy","Adventurous","Whimsical","Mysterious","Tender"], active:0},
               ].map(fc => (
                 <div className="ll-filter-card" key={fc.name}>
                   <div className="ll-filter-axis">{fc.axis}</div>

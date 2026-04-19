@@ -4,10 +4,8 @@ type FilterOption = { value: string; label: string; subtitle?: string };
 
 export const defaultFilters: StoryFilters = {
   visualStyle: "watercolor",
-  narratorVoice: "warm_mother",
   readingLevel: "early_reader",
   tone: "cozy",
-  pacing: "unhurried",
 };
 
 export const FILTER_CONFIG: Array<{
@@ -25,18 +23,6 @@ export const FILTER_CONFIG: Array<{
       { value: "paper_cutout", label: "Paper Cutout" },
       { value: "charcoal", label: "Charcoal Sketch" },
       { value: "crayon", label: "Crayon Drawing" },
-    ],
-  },
-  {
-    key: "narratorVoice",
-    title: "Narrator Voice",
-    options: [
-      { value: "warm_mother", label: "Warm Mother" },
-      { value: "wise_grandfather", label: "Wise Grandfather" },
-      { value: "playful_sister", label: "Playful Sister" },
-      { value: "gentle_father", label: "Gentle Father" },
-      { value: "mysterious_narrator", label: "Mysterious Narrator" },
-      { value: "kid_narrator", label: "Kid Narrator" },
     ],
   },
   {
@@ -58,15 +44,6 @@ export const FILTER_CONFIG: Array<{
       { value: "whimsical", label: "Whimsical" },
       { value: "mysterious", label: "Mysterious" },
       { value: "tender", label: "Tender" },
-    ],
-  },
-  {
-    key: "pacing",
-    title: "Pacing",
-    options: [
-      { value: "unhurried", label: "Unhurried" },
-      { value: "natural", label: "Natural" },
-      { value: "brisk", label: "Brisk" },
     ],
   },
 ];

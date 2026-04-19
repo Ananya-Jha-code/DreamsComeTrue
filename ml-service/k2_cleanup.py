@@ -296,7 +296,7 @@ Rules for the paragraphs:
 - Each paragraph should be concise and self-contained.
 - Each paragraph should describe a scene that can be illustrated clearly.
 - Do not add dialogue or events that were not present in the original story.
-- Keep the tone and pacing aligned with the selected filters.
+- Keep the tone aligned with the selected filters.
 
 Book title guidance:
 - Create a short, child-friendly storybook title.
@@ -314,17 +314,11 @@ You MUST incorporate these filters naturally into the cinematic brief.
 visualStyle:
 watercolor | pixar | ghibli | paper_cutout | charcoal | crayon
 
-narratorVoice:
-warm_mother | wise_grandfather | playful_sister | gentle_father | mysterious_narrator | kid_narrator
-
 readingLevel:
 toddler | early_reader | grade_school | advanced
 
 tone:
 cozy | adventurous | whimsical | mysterious | tender
-
-pacing:
-unhurried | natural | brisk
 
 --------------------------------------------------
 
