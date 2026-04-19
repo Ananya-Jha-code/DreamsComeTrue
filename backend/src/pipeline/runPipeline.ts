@@ -157,7 +157,7 @@ export async function runPipeline(job: JobRecord, audioBuffer?: Buffer): Promise
       `Tone: ${labelFilter("tone", job.filters.tone)}.`,
       `Pacing: ${labelFilter("pacing", job.filters.pacing)}.`,
       "Compose as a full-page storybook illustration with strong foreground, middle ground, and background depth.",
-      "Keep characters visually consistent across pages and avoid any text, captions, frames, or watermarks.",
+      "Keep characters visually consistent across pages and avoid any text, letters, words, numbers, captions, frames, speech bubbles, signs, labels, logos, or watermarks.",
       "The page should feel warm, readable, and directly connected to the paragraph.",
     ].join("\n");
 

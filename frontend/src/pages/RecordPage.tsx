@@ -1,8 +1,15 @@
-import { useEffect, useRef, useState } from "react";
+import * as React from "react";
 import { useLocation, useNavigate } from "react-router-dom";
 import { defaultFilters, getFilterLabel } from "../filters";
 import { createJob, getJob } from "../api/jobs";
 import type { JobRecord, JobStage, PictureBookPage, StoryFilters } from "../types/job";
+
+type StateSetter<T> = (value: T | ((current: T) => T)) => void;
+type EffectCallback = () => void | (() => void);
+
+const useState = (React as any).useState as <T>(initial: T) => [T, StateSetter<T>];
+const useEffect = (React as any).useEffect as (effect: EffectCallback, deps?: readonly unknown[]) => void;
+const useRef = (React as any).useRef as <T>(initial: T) => { current: T };
 
 type RecordLocationState = { filters?: StoryFilters };
 
@@ -31,24 +38,71 @@ export default function RecordPage() {
   const [jobStage, setJobStage] = useState<JobStage | null>(null);
   const [jobResult, setJobResult] = useState<JobRecord["result"] | null>(null);
   const [generating, setGenerating] = useState(false);
+  const [activePageIndex, setActivePageIndex] = useState(0);
+  const [turningPageIndex, setTurningPageIndex] = useState<number | null>(null);
+  const [turnDirection, setTurnDirection] = useState<"next" | "prev">("next");
 
   const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
-  const canvasRef = useRef<HTMLCanvasElement>(null);
+  const pageTurnTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const canvasRef = useRef<HTMLCanvasElement | null>(null);
   const animRef = useRef<number>(0);
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
   const mediaStreamRef = useRef<MediaStream | null>(null);
   const audioChunksRef = useRef<Blob[]>([]);
   const audioUrlRef = useRef<string | null>(null);
-  const audioPlayerRef = useRef<HTMLAudioElement>(null);
+  const audioPlayerRef = useRef<HTMLAudioElement | null>(null);
 
   const storyTitle = jobResult?.bookTitle ?? "Your picture book";
   const pages: PictureBookPage[] = jobResult?.pages ?? [];
   const paragraphs = jobResult?.pictureBookParagraphs ?? pages.map((page) => page.paragraph);
+  const activePage = pages[activePageIndex] ?? null;
+  const turningPage = turningPageIndex !== null ? pages[turningPageIndex] ?? null : null;
 
   const buildPageFilename = (page: PictureBookPage) => {
     const index = String(page.index + 1).padStart(2, "0");
     return `${slugify(storyTitle)}-page-${index}.jpg`;
   };
+
+  const flipToPage = (nextIndex: number) => {
+    if (nextIndex < 0 || nextIndex >= pages.length || nextIndex === activePageIndex || turningPageIndex !== null) {
+      return;
+    }
+
+    if (pageTurnTimerRef.current) {
+      clearTimeout(pageTurnTimerRef.current);
+    }
+
+    setTurnDirection(nextIndex > activePageIndex ? "next" : "prev");
+    setTurningPageIndex(nextIndex);
+
+    pageTurnTimerRef.current = setTimeout(() => {
+      setActivePageIndex(nextIndex);
+      setTurningPageIndex(null);
+    }, 380);
+  };
+
+  useEffect(() => {
+    setActivePageIndex(0);
+    setTurningPageIndex(null);
+
+    if (pageTurnTimerRef.current) {
+      clearTimeout(pageTurnTimerRef.current);
+      pageTurnTimerRef.current = null;
+    }
+  }, [jobResult]);
+
+  useEffect(() => {
+    if (pages.length === 0) return;
+    setActivePageIndex((current) => Math.min(current, pages.length - 1));
+  }, [pages.length]);
+
+  useEffect(() => {
+    return () => {
+      if (pageTurnTimerRef.current) {
+        clearTimeout(pageTurnTimerRef.current);
+      }
+    };
+  }, []);
 
   useEffect(() => {
     const canvas = canvasRef.current;
@@ -157,7 +211,7 @@ export default function RecordPage() {
     }
 
     if (mediaStreamRef.current) {
-      mediaStreamRef.current.getTracks().forEach((track) => track.stop());
+      mediaStreamRef.current.getTracks().forEach((track: MediaStreamTrack) => track.stop());
       mediaStreamRef.current = null;
     }
 
@@ -204,7 +258,7 @@ export default function RecordPage() {
         mediaRecorderRef.current.stop();
       }
       if (mediaStreamRef.current) {
-        mediaStreamRef.current.getTracks().forEach((track) => track.stop());
+        mediaStreamRef.current.getTracks().forEach((track: MediaStreamTrack) => track.stop());
       }
       if (audioUrlRef.current) {
         URL.revokeObjectURL(audioUrlRef.current);
@@ -299,6 +353,44 @@ export default function RecordPage() {
         .pb-loader{padding:1.1rem 1.35rem 1.5rem;font-family:'Instrument Sans',sans-serif;color:rgba(42,33,22,.72);display:flex;align-items:center;gap:.8rem;}
         .pb-spinner{width:14px;height:14px;border-radius:50%;border:2px solid rgba(130,84,32,.25);border-top-color:#8a5a22;animation:spin .8s linear infinite;}
         @keyframes spin{to{transform:rotate(360deg)}}
+        .pb-book-shell{margin:1.4rem auto 0;border:1px solid rgba(130,84,32,.14);border-radius:32px;background:linear-gradient(180deg,rgba(255,250,241,.95),rgba(245,233,213,.96));box-shadow:0 24px 70px rgba(84,56,20,.08);overflow:hidden;}
+        .pb-book-top{display:flex;align-items:flex-start;justify-content:space-between;gap:1rem;padding:1.35rem 1.35rem 1rem;flex-wrap:wrap;}
+        .pb-book-top h3{font-family:'Cormorant Garamond',serif;font-size:clamp(1.7rem,3.5vw,2.6rem);font-weight:400;margin:.15rem 0 0;color:#2a2116;}
+        .pb-book-top p{margin:0;}
+        .pb-book-meta{font-family:'Instrument Sans',sans-serif;font-size:.68rem;letter-spacing:.16em;text-transform:uppercase;color:rgba(42,33,22,.45);}
+        .pb-book-badge{padding:.55rem .85rem;border-radius:999px;border:1px solid rgba(130,84,32,.12);background:rgba(255,255,255,.52);font-family:'Instrument Sans',sans-serif;font-size:.68rem;letter-spacing:.14em;text-transform:uppercase;color:#8a5a22;}
+        .pb-book-stage{padding:0 1.35rem 1.35rem;display:grid;grid-template-columns:auto minmax(0,1fr) auto;gap:.8rem;align-items:center;}
+        .pb-book-nav{width:42px;height:42px;border-radius:50%;border:1px solid rgba(130,84,32,.18);background:rgba(255,255,255,.55);color:#8a5a22;font-size:1rem;cursor:pointer;display:flex;align-items:center;justify-content:center;transition:transform .2s ease, background .2s ease, opacity .2s ease;}
+        .pb-book-nav:hover:not(:disabled){transform:translateY(-1px);background:rgba(255,255,255,.82);}
+        .pb-book-nav:disabled{opacity:.35;cursor:not-allowed;}
+        .pb-book-viewport{position:relative;min-height:520px;border-radius:28px;border:1px solid rgba(130,84,32,.12);background:linear-gradient(180deg,rgba(255,253,248,.96),rgba(248,238,220,.98));box-shadow:inset 0 1px 0 rgba(255,255,255,.7),0 18px 50px rgba(84,56,20,.08);overflow:hidden;perspective:1800px;}
+        .pb-book-viewport::before{content:'';position:absolute;inset:0;background:linear-gradient(90deg,transparent 48.8%,rgba(118,78,32,.09) 49.5%,rgba(255,255,255,.22) 50%,rgba(118,78,32,.09) 50.5%,transparent 51.2%);pointer-events:none;z-index:0;}
+        .pb-spread{position:absolute;inset:0;display:grid;grid-template-columns:1fr 1fr;transform-style:preserve-3d;z-index:1;}
+        .pb-spread.incoming{z-index:3;}
+        .pb-spread.outgoing{z-index:2;}
+        .pb-page{position:relative;display:flex;flex-direction:column;overflow:hidden;background:linear-gradient(180deg,rgba(255,251,244,.98),rgba(248,236,212,.98));}
+        .pb-page.left{border-right:1px solid rgba(130,84,32,.08);}
+        .pb-page.right{border-left:1px solid rgba(130,84,32,.08);}
+        .pb-page::after{content:'';position:absolute;inset:0;background:linear-gradient(90deg,rgba(255,255,255,.36),transparent 18%,transparent 82%,rgba(84,56,20,.04));pointer-events:none;}
+        .pb-page-inner{position:relative;z-index:1;height:100%;display:flex;flex-direction:column;gap:1rem;padding:1.1rem;}
+        .pb-page-art{position:relative;flex:1;min-height:260px;border-radius:22px;overflow:hidden;background:#fff4e1;box-shadow:inset 0 0 0 1px rgba(130,84,32,.08);}
+        .pb-page-art img{width:100%;height:100%;object-fit:cover;display:block;}
+        .pb-page-num{position:absolute;top:14px;left:14px;padding:.34rem .65rem;border-radius:999px;background:rgba(255,255,255,.88);font-family:'Instrument Sans',sans-serif;font-size:.66rem;letter-spacing:.14em;text-transform:uppercase;color:#8a5a22;}
+        .pb-page-copy{font-family:'Instrument Sans',sans-serif;font-size:1rem;line-height:1.8;color:rgba(42,33,22,.86);margin:0;}
+        .pb-page-note{margin:0;font-family:'Instrument Sans',sans-serif;font-size:.7rem;letter-spacing:.14em;text-transform:uppercase;color:rgba(42,33,22,.45);}
+        .pb-page-actions{display:flex;align-items:center;justify-content:space-between;gap:.75rem;flex-wrap:wrap;margin-top:auto;}
+        .pb-page-chips{display:flex;flex-wrap:wrap;gap:.45rem;padding:0 1.35rem 1.35rem;}
+        .pb-chip{border:1px solid rgba(130,84,32,.12);background:rgba(255,255,255,.5);border-radius:999px;padding:.45rem .8rem;font-family:'Instrument Sans',sans-serif;font-size:.7rem;letter-spacing:.12em;text-transform:uppercase;color:rgba(42,33,22,.55);cursor:pointer;transition:transform .2s ease, background .2s ease, color .2s ease,border-color .2s ease;}
+        .pb-chip:hover{transform:translateY(-1px);background:rgba(255,255,255,.78);color:#2a2116;}
+        .pb-chip.active{background:#8a5a22;color:#fff8ee;border-color:#8a5a22;}
+        .pb-turn-next-out{animation:pb-turn-next-out .38s cubic-bezier(.4,0,1,1) forwards;transform-origin:left center;}
+        .pb-turn-next-in{animation:pb-turn-next-in .38s cubic-bezier(0,0,.2,1) forwards;transform-origin:right center;}
+        .pb-turn-prev-out{animation:pb-turn-prev-out .38s cubic-bezier(.4,0,1,1) forwards;transform-origin:right center;}
+        .pb-turn-prev-in{animation:pb-turn-prev-in .38s cubic-bezier(0,0,.2,1) forwards;transform-origin:left center;}
+        @keyframes pb-turn-next-out{from{transform:rotateY(0deg) translateX(0);opacity:1}to{transform:rotateY(-82deg) translateX(-4%);opacity:0}}
+        @keyframes pb-turn-next-in{from{transform:rotateY(82deg) translateX(4%);opacity:0}to{transform:rotateY(0deg) translateX(0);opacity:1}}
+        @keyframes pb-turn-prev-out{from{transform:rotateY(0deg) translateX(0);opacity:1}to{transform:rotateY(82deg) translateX(4%);opacity:0}}
+        @keyframes pb-turn-prev-in{from{transform:rotateY(-82deg) translateX(-4%);opacity:0}to{transform:rotateY(0deg) translateX(0);opacity:1}}
         .pb-audio{max-width:520px;width:100%;margin:0 auto 1rem;display:flex;flex-direction:column;gap:.8rem;align-items:center;}
         .pb-audio audio{width:100%;}
         .pb-error{font-family:'Instrument Sans',sans-serif;font-size:.82rem;color:#8a2e2e;max-width:640px;margin:0 auto 1rem;line-height:1.6;}
@@ -307,7 +399,7 @@ export default function RecordPage() {
         .pb-summary-card h3{font-family:'Instrument Sans',sans-serif;font-size:.68rem;letter-spacing:.16em;text-transform:uppercase;color:rgba(42,33,22,.46);margin:0 0 .55rem;}
         .pb-summary-card p{margin:0;font-family:'Instrument Sans',sans-serif;font-size:.92rem;line-height:1.6;color:rgba(42,33,22,.86);}
         .pb-summary-card ol{margin:0;padding-left:1.15rem;font-family:'Instrument Sans',sans-serif;font-size:.9rem;line-height:1.6;color:rgba(42,33,22,.86);}
-        @media (max-width: 720px){.pb-page{padding:4.5rem 1rem 3rem}.pb-back{position:static;margin-bottom:1.25rem}.pb-panel-top{padding:1rem 1rem 0}.pb-grid,.pb-summary{padding:1rem}.pb-grid{grid-template-columns:1fr}.pb-btn-row{justify-content:flex-start}}
+        @media (max-width: 720px){.pb-page{padding:4.5rem 1rem 3rem}.pb-back{position:static;margin-bottom:1.25rem}.pb-panel-top{padding:1rem 1rem 0}.pb-grid,.pb-summary{padding:1rem}.pb-grid{grid-template-columns:1fr}.pb-btn-row{justify-content:flex-start}.pb-book-top,.pb-book-stage,.pb-page-chips{padding-left:1rem;padding-right:1rem}.pb-book-stage{grid-template-columns:1fr}.pb-book-nav{display:none}.pb-book-viewport{min-height:unset}.pb-spread{position:relative;grid-template-columns:1fr}.pb-page.left{border-right:none;border-bottom:1px solid rgba(130,84,32,.08)}.pb-page.right{border-left:none}.pb-page-art{min-height:220px}}
       `}</style>
 
       <div className="pb-page">
@@ -406,6 +498,128 @@ export default function RecordPage() {
                 )}
               </div>
 
+              <div className="pb-book-shell">
+                <div className="pb-book-top">
+                  <div>
+                    <p className="pb-book-meta">Flip through the pages</p>
+                    <h3>{storyTitle}</h3>
+                  </div>
+                  <div className="pb-book-badge">
+                    Page {pages.length === 0 ? 0 : activePageIndex + 1} of {pages.length}
+                  </div>
+                </div>
+
+                {pages.length > 0 ? (
+                  <div className="pb-book-stage">
+                    <button
+                      type="button"
+                      className="pb-book-nav"
+                      onClick={() => flipToPage(activePageIndex - 1)}
+                      disabled={activePageIndex === 0 || turningPageIndex !== null}
+                      aria-label="Previous page"
+                    >
+                      ‹
+                    </button>
+
+                    <div className="pb-book-viewport">
+                      {turningPage && (
+                        <article className={`pb-spread incoming pb-turn-${turnDirection}-in`} aria-hidden="true">
+                          <div className="pb-page left">
+                            <div className="pb-page-inner">
+                              <div className="pb-page-art">
+                                <span className="pb-page-num">Page {turningPage.index + 1}</span>
+                                <img src={turningPage.imageDataUrl} alt={`Illustration for page ${turningPage.index + 1}`} />
+                              </div>
+                              <div className="pb-page-actions">
+                                <p className="pb-page-note">Illustration</p>
+                                <a href={turningPage.imageDataUrl} download={buildPageFilename(turningPage)} className="pb-btn secondary" style={{ padding: ".7rem 1.1rem" }}>
+                                  Download page
+                                </a>
+                              </div>
+                            </div>
+                          </div>
+                          <div className="pb-page right">
+                            <div className="pb-page-inner">
+                              <p className="pb-page-copy">{turningPage.paragraph}</p>
+                              <div className="pb-page-actions">
+                                <p className="pb-page-note">{turningPage.imageProvider}{turningPage.imageModel ? ` · ${turningPage.imageModel}` : ""}</p>
+                                <p className="pb-page-note">Page turn in progress</p>
+                              </div>
+                            </div>
+                          </div>
+                        </article>
+                      )}
+
+                      {activePage && (
+                        <article className={`pb-spread outgoing${turningPage ? ` pb-turn-${turnDirection}-out` : ""}`}>
+                          <div className="pb-page left">
+                            <div className="pb-page-inner">
+                              <div className="pb-page-art">
+                                <span className="pb-page-num">Page {activePage.index + 1}</span>
+                                <img src={activePage.imageDataUrl} alt={`Illustration for page ${activePage.index + 1}`} />
+                              </div>
+                              <div className="pb-page-actions">
+                                <p className="pb-page-note">Illustration</p>
+                                <a href={activePage.imageDataUrl} download={buildPageFilename(activePage)} className="pb-btn secondary" style={{ padding: ".7rem 1.1rem" }}>
+                                  Download page
+                                </a>
+                              </div>
+                            </div>
+                          </div>
+                          <div className="pb-page right">
+                            <div className="pb-page-inner">
+                              <p className="pb-page-copy">{activePage.paragraph}</p>
+                              <div className="pb-page-actions">
+                                <p className="pb-page-note">{activePage.imageProvider}{activePage.imageModel ? ` · ${activePage.imageModel}` : ""}</p>
+                                <p className="pb-page-note">Open book spread</p>
+                              </div>
+                            </div>
+                          </div>
+                        </article>
+                      )}
+                    </div>
+
+                    <button
+                      type="button"
+                      className="pb-book-nav"
+                      onClick={() => flipToPage(activePageIndex + 1)}
+                      disabled={activePageIndex >= pages.length - 1 || turningPageIndex !== null}
+                      aria-label="Next page"
+                    >
+                      ›
+                    </button>
+                  </div>
+                ) : (
+                  <div className="pb-book-stage" style={{ gridTemplateColumns: "1fr" }}>
+                    <div className="pb-book-viewport" style={{ display: "flex", alignItems: "center", justifyContent: "center", minHeight: 340 }}>
+                      <div style={{ maxWidth: 420, textAlign: "center", padding: "2rem" }}>
+                        <p className="pb-book-meta">Waiting for story pages</p>
+                        <h3 style={{ marginBottom: ".75rem" }}>The book is still being printed.</h3>
+                        <p className="pb-page-copy" style={{ fontSize: ".95rem" }}>
+                          Once generation finishes, the pages will appear here as a flip-through picture book.
+                        </p>
+                      </div>
+                    </div>
+                  </div>
+                )}
+
+                {pages.length > 0 && (
+                  <div className="pb-page-chips">
+                    {pages.map((page) => (
+                      <button
+                        key={page.index}
+                        type="button"
+                        className={`pb-chip${page.index === activePageIndex ? " active" : ""}`}
+                        onClick={() => flipToPage(page.index)}
+                        disabled={turningPageIndex !== null}
+                      >
+                        {page.index + 1}
+                      </button>
+                    ))}
+                  </div>
+                )}
+              </div>
+
               <div className="pb-summary">
                 <div className="pb-summary-card">
                   <h3>Clean transcript</h3>
@@ -423,26 +637,6 @@ export default function RecordPage() {
                     <p>Pages will appear here after the AI finishes splitting the story.</p>
                   )}
                 </div>
-              </div>
-
-              <div className="pb-grid">
-                {pages.map((page) => (
-                  <article key={page.index} className="pb-page-card">
-                    <div className="pb-page-art">
-                      <span className="pb-page-num">Page {page.index + 1}</span>
-                      <img src={page.imageDataUrl} alt={`Illustration for page ${page.index + 1}`} />
-                    </div>
-                    <div className="pb-page-caption">
-                      <p className="pb-copy">{page.paragraph}</p>
-                      <p className="small">{page.imageProvider}{page.imageModel ? ` · ${page.imageModel}` : ""}</p>
-                      <div className="pb-btn-row" style={{ justifyContent: "flex-start", margin: "1rem 0 0" }}>
-                        <a href={page.imageDataUrl} download={buildPageFilename(page)} className="pb-btn secondary">
-                          Download page
-                        </a>
-                      </div>
-                    </div>
-                  </article>
-                ))}
               </div>
             </div>
           )}
