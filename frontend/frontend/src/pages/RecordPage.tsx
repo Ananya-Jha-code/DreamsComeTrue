@@ -1,69 +1,258 @@
 import { useEffect, useRef, useState } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
 import { defaultFilters, getFilterLabel } from "../filters";
-import type { StoryFilters } from "../types/job";
+import { createJob, getJob } from "../api/jobs";
+import type { JobRecord, JobStage, PictureBookPage, StoryFilters } from "../types/job";
 
 type RecordLocationState = { filters?: StoryFilters };
+
+function slugify(value: string): string {
+  return value
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/^-+|-+$/g, "")
+    .slice(0, 40) || "storybook";
+}
 
 export default function RecordPage() {
   const navigate = useNavigate();
   const location = useLocation();
   const state = (location.state as RecordLocationState | null) ?? null;
   const filters = state?.filters ?? defaultFilters;
+
   const [recording, setRecording] = useState(false);
   const [seconds, setSeconds] = useState(0);
   const [done, setDone] = useState(false);
+  const [audioUrl, setAudioUrl] = useState<string | null>(null);
+  const [audioBlob, setAudioBlob] = useState<Blob | null>(null);
+  const [micError, setMicError] = useState<string | null>(null);
+  const [submitError, setSubmitError] = useState<string | null>(null);
+  const [jobId, setJobId] = useState<string | null>(null);
+  const [jobStage, setJobStage] = useState<JobStage | null>(null);
+  const [jobResult, setJobResult] = useState<JobRecord["result"] | null>(null);
+  const [generating, setGenerating] = useState(false);
+
   const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const animRef = useRef<number>(0);
+  const mediaRecorderRef = useRef<MediaRecorder | null>(null);
+  const mediaStreamRef = useRef<MediaStream | null>(null);
+  const audioChunksRef = useRef<Blob[]>([]);
+  const audioUrlRef = useRef<string | null>(null);
+  const audioPlayerRef = useRef<HTMLAudioElement>(null);
 
-  // Waveform animation
+  const storyTitle = jobResult?.bookTitle ?? "Your picture book";
+  const pages: PictureBookPage[] = jobResult?.pages ?? [];
+  const paragraphs = jobResult?.pictureBookParagraphs ?? pages.map((page) => page.paragraph);
+
+  const buildPageFilename = (page: PictureBookPage) => {
+    const index = String(page.index + 1).padStart(2, "0");
+    return `${slugify(storyTitle)}-page-${index}.jpg`;
+  };
+
   useEffect(() => {
     const canvas = canvasRef.current;
     if (!canvas) return;
     const ctx = canvas.getContext("2d");
     if (!ctx) return;
+
     let frame = 0;
     const draw = () => {
       canvas.width = canvas.offsetWidth;
       canvas.height = canvas.offsetHeight;
       ctx.clearRect(0, 0, canvas.width, canvas.height);
-      const bars = 48;
+
+      const bars = 44;
       const barW = canvas.width / bars;
-      for (let i = 0; i < bars; i++) {
+      for (let i = 0; i < bars; i += 1) {
         const active = recording;
-        const h = active
-          ? (Math.sin(frame * 0.08 + i * 0.4) * 0.5 + 0.5) * canvas.height * 0.75 + 4
+        const height = active
+          ? (Math.sin(frame * 0.08 + i * 0.3) * 0.5 + 0.5) * canvas.height * 0.72 + 4
           : 4;
-        const alpha = active ? 0.6 + Math.sin(frame * 0.05 + i * 0.3) * 0.4 : 0.15;
-        ctx.fillStyle = `rgba(201,168,76,${alpha})`;
+        const alpha = active ? 0.65 + Math.sin(frame * 0.06 + i * 0.2) * 0.25 : 0.16;
+        ctx.fillStyle = `rgba(130, 84, 32, ${alpha})`;
         ctx.beginPath();
-        ctx.roundRect(i * barW + barW * 0.2, (canvas.height - h) / 2, barW * 0.6, h, 3);
+        ctx.roundRect(i * barW + barW * 0.18, (canvas.height - height) / 2, barW * 0.64, height, 4);
         ctx.fill();
       }
-      frame++;
+      frame += 1;
       animRef.current = requestAnimationFrame(draw);
     };
+
     draw();
     return () => cancelAnimationFrame(animRef.current);
   }, [recording]);
 
-  const toggleRecording = () => {
-    if (done) return;
-    if (!recording) {
-      setRecording(true);
+  const startRecording = async () => {
+    if (!navigator.mediaDevices?.getUserMedia) {
+      setMicError("Your browser does not support microphone recording.");
+      return;
+    }
+
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      mediaStreamRef.current = stream;
+      audioChunksRef.current = [];
+
+      const recorder = new MediaRecorder(stream);
+      mediaRecorderRef.current = recorder;
+
+      recorder.ondataavailable = (event: BlobEvent) => {
+        if (event.data.size > 0) {
+          audioChunksRef.current.push(event.data);
+        }
+      };
+
+      recorder.onstop = () => {
+        if (audioUrlRef.current) {
+          URL.revokeObjectURL(audioUrlRef.current);
+          audioUrlRef.current = null;
+        }
+
+        if (audioChunksRef.current.length === 0) {
+          setAudioBlob(null);
+          setAudioUrl(null);
+          return;
+        }
+
+        const recordedBlob = new Blob(audioChunksRef.current, {
+          type: recorder.mimeType || "audio/webm",
+        });
+        setAudioBlob(recordedBlob);
+        const nextAudioUrl = URL.createObjectURL(recordedBlob);
+        audioUrlRef.current = nextAudioUrl;
+        setAudioUrl(nextAudioUrl);
+      };
+
+      setMicError(null);
+      setSubmitError(null);
+      setJobId(null);
+      setJobStage(null);
+      setJobResult(null);
+      setDone(false);
+      setAudioUrl(null);
+      setAudioBlob(null);
       setSeconds(0);
-      timerRef.current = setInterval(() => setSeconds(s => s + 1), 1000);
-    } else {
-      setRecording(false);
+      setRecording(true);
+
       if (timerRef.current) clearInterval(timerRef.current);
-      setDone(true);
+      timerRef.current = setInterval(() => setSeconds((value) => value + 1), 1000);
+
+      recorder.start();
+    } catch {
+      setMicError("Microphone access was denied. Please allow microphone permission and try again.");
     }
   };
 
-  useEffect(() => () => { if (timerRef.current) clearInterval(timerRef.current); }, []);
+  const stopRecording = () => {
+    setRecording(false);
+    if (timerRef.current) {
+      clearInterval(timerRef.current);
+      timerRef.current = null;
+    }
 
-  const fmt = (s: number) => `${Math.floor(s/60).toString().padStart(2,"0")}:${(s%60).toString().padStart(2,"0")}`;
+    const recorder = mediaRecorderRef.current;
+    if (recorder && recorder.state !== "inactive") {
+      recorder.stop();
+    }
+
+    if (mediaStreamRef.current) {
+      mediaStreamRef.current.getTracks().forEach((track: MediaStreamTrack) => track.stop());
+      mediaStreamRef.current = null;
+    }
+
+    setDone(true);
+  };
+
+  const toggleRecording = async () => {
+    if (done) return;
+    if (recording) {
+      stopRecording();
+      return;
+    }
+    await startRecording();
+  };
+
+  const resetRecording = () => {
+    if (audioPlayerRef.current) {
+      audioPlayerRef.current.pause();
+      audioPlayerRef.current.currentTime = 0;
+    }
+
+    setDone(false);
+    setRecording(false);
+    setSeconds(0);
+    setMicError(null);
+    setAudioUrl(null);
+    setAudioBlob(null);
+    setSubmitError(null);
+    setJobId(null);
+    setJobStage(null);
+    setJobResult(null);
+    setGenerating(false);
+
+    if (audioUrlRef.current) {
+      URL.revokeObjectURL(audioUrlRef.current);
+      audioUrlRef.current = null;
+    }
+  };
+
+  useEffect(() => {
+    return () => {
+      if (timerRef.current) clearInterval(timerRef.current);
+      if (mediaRecorderRef.current && mediaRecorderRef.current.state !== "inactive") {
+        mediaRecorderRef.current.stop();
+      }
+      if (mediaStreamRef.current) {
+        mediaStreamRef.current.getTracks().forEach((track: MediaStreamTrack) => track.stop());
+      }
+      if (audioUrlRef.current) {
+        URL.revokeObjectURL(audioUrlRef.current);
+      }
+    };
+  }, []);
+
+  const pollJobUntilFinished = async (id: string) => {
+    for (let attempt = 0; attempt < 240; attempt += 1) {
+      const job = await getJob(id);
+      setJobStage(job.stage);
+      setJobResult(job.result ?? null);
+
+      if (job.stage === "ready") return;
+      if (job.stage === "failed") {
+        throw new Error(job.error ?? "Pipeline failed.");
+      }
+
+      await new Promise((resolve) => setTimeout(resolve, 1200));
+    }
+
+    throw new Error("The picture book is still generating. Please wait and try again.");
+  };
+
+  const handleGenerateBook = async () => {
+    if (!audioBlob) {
+      setSubmitError("Please record your story first.");
+      return;
+    }
+
+    try {
+      setSubmitError(null);
+      setGenerating(true);
+
+      const created = await createJob(audioBlob, filters);
+      setJobId(created.jobId);
+      setJobStage(created.stage as JobStage);
+
+      await pollJobUntilFinished(created.jobId);
+    } catch (error) {
+      setSubmitError(error instanceof Error ? error.message : "Unable to generate picture book.");
+    } finally {
+      setGenerating(false);
+    }
+  };
+
+  const fmt = (value: number) =>
+    `${Math.floor(value / 60).toString().padStart(2, "0")}:${(value % 60).toString().padStart(2, "0")}`;
 
   return (
     <>
@@ -86,70 +275,143 @@ export default function RecordPage() {
         .rc-btn:hover .rc-dot{background:#0d1628;}
       `}</style>
 
-      <div className="rc-cursor" id="rccursor" />
-      <div className="rc-ring" id="rcring" />
-      <script dangerouslySetInnerHTML={{__html:`(function(){var mx=0,my=0,rx=0,ry=0;document.addEventListener('mousemove',function(e){mx=e.clientX;my=e.clientY;});(function tick(){var c=document.getElementById('rccursor'),r=document.getElementById('rcring');if(c){c.style.left=mx-4+'px';c.style.top=my-4+'px';}rx+=(mx-rx-16)*0.1;ry+=(my-ry-16)*0.1;if(r){r.style.left=rx+'px';r.style.top=ry+'px';}requestAnimationFrame(tick);})();})()`}} />
-
-      <div style={{fontFamily:"'Instrument Sans',sans-serif",fontWeight:300,background:"linear-gradient(160deg,#0d1628 0%,#080d18 60%)",color:"#e8dfd0",minHeight:"100vh",display:"flex",flexDirection:"column",alignItems:"center",justifyContent:"center",padding:"3rem 1.5rem",textAlign:"center"}}>
-
-        {/* Back */}
-        <button type="button" onClick={() => navigate("/picker",{state:{filters}})} style={{position:"absolute",top:"2.5rem",left:"2rem",background:"none",border:"none",color:"rgba(232,223,208,.3)",fontSize:".68rem",letterSpacing:".2em",textTransform:"uppercase",cursor:"none",fontFamily:"'Instrument Sans',sans-serif"}}>
-          ← Picker
-        </button>
-
-        {/* Step label */}
-        <p style={{fontSize:".62rem",letterSpacing:".32em",textTransform:"uppercase",color:"#c9a84c",marginBottom:"1rem"}}>Step 2 of 2</p>
-
-        {/* Title */}
-        <h1 style={{fontFamily:"'Cormorant Garamond',serif",fontSize:"clamp(2.5rem,7vw,4rem)",fontWeight:300,color:"#e8dfd0",margin:"0 0 1rem",lineHeight:1.05}}>
-          {done ? <><em style={{fontStyle:"italic",color:"#c9a84c"}}>Beautiful.</em> Ready to weave.</> : recording ? <>Listening<em style={{fontStyle:"italic",color:"#c9a84c"}}>…</em></> : <>Tell your <em style={{fontStyle:"italic",color:"#c9a84c"}}>story</em></>}
-        </h1>
-        <p style={{fontSize:".85rem",color:"rgba(232,223,208,.38)",maxWidth:400,lineHeight:1.6,marginBottom:"3rem"}}>
-          {done ? "Your story has been captured. Generate the director prompt below." : recording ? "Speak naturally. Pause whenever you like. Tap again when you're done." : "Tap the button below and speak. We'll handle the rest."}
-        </p>
-
-        {/* Waveform */}
-        <div style={{width:"100%",maxWidth:480,height:80,marginBottom:"2.5rem",borderRadius:12,overflow:"hidden",border:"1px solid rgba(201,168,76,.08)",background:"rgba(8,13,24,.5)"}}>
-          <canvas ref={canvasRef} style={{width:"100%",height:"100%"}} />
-        </div>
-
-        {/* Timer */}
-        {(recording || done) && (
-          <div style={{fontFamily:"'Cormorant Garamond',serif",fontSize:"2.5rem",fontWeight:300,color:"#c9a84c",marginBottom:"2rem",letterSpacing:".05em"}}>
-            {fmt(seconds)}
-          </div>
-        )}
-
-        {/* Record button */}
-        {!done && (
-          <button type="button" className={`rc-record-btn${recording?" active":""}`} onClick={toggleRecording} style={{marginBottom:"2rem"}}>
-            {recording
-              ? <div style={{width:28,height:28,background:"#c9a84c",borderRadius:4}} />
-              : <div style={{width:28,height:28,background:"#c9a84c",borderRadius:"50%"}} />}
+      <div className="pb-page">
+        <div className="pb-shell">
+          <button type="button" onClick={() => navigate("/picker", { state: { filters } })} className="pb-back">
+            ← Picker
           </button>
-        )}
-        {!done && <p style={{fontSize:".7rem",letterSpacing:".15em",textTransform:"uppercase",color:"rgba(232,223,208,.25)",marginBottom:"3rem"}}>{recording ? "Tap to stop" : "Tap to begin"}</p>}
 
-        {/* Generate / redo */}
-        {done && (
-          <div style={{display:"flex",flexWrap:"wrap",gap:"1rem",justifyContent:"center",marginBottom:"3rem"}}>
-            <button type="button" onClick={() => {setDone(false);setSeconds(0);setRecording(false);}} style={{background:"none",border:"1px solid rgba(232,223,208,.12)",color:"rgba(232,223,208,.45)",borderRadius:"100px",padding:".85rem 2rem",fontFamily:"'Instrument Sans',sans-serif",fontSize:".8rem",letterSpacing:".12em",textTransform:"uppercase",cursor:"none",transition:"all .3s"}}>
-              Record again
-            </button>
-            <button type="button" className="rc-btn">
-              <span className="rc-dot" />
-              Generate Prompt
-            </button>
+          <p className="pb-step">Step 2 of 2</p>
+          <h1 className="pb-title">
+            {done ? (
+              <>
+                Your story is ready to <em>illustrate</em>.
+              </>
+            ) : recording ? (
+              <>
+                Listening to your <em>story</em>
+              </>
+            ) : (
+              <>
+                Record your <em>picture book</em>
+              </>
+            )}
+          </h1>
+          <p className="pb-sub">
+            Speak naturally, pause when you want, and we’ll turn the narration into a clean transcript, split it into pages, and generate illustrations that match the style you picked.
+          </p>
+
+          {micError && <p className="pb-error">{micError}</p>}
+          {submitError && <p className="pb-error">{submitError}</p>}
+
+          <div className="pb-bar">
+            <canvas ref={canvasRef} style={{ width: "100%", height: "100%" }} />
           </div>
-        )}
 
-        {/* Selected filters summary */}
-        <div style={{display:"flex",flexWrap:"wrap",gap:".5rem",justifyContent:"center",maxWidth:500}}>
-          {(["visualStyle","narratorVoice","readingLevel","tone","pacing"] as (keyof StoryFilters)[]).map(k => (
-            <span key={k} className="rc-pill">{getFilterLabel(k, filters[k])}</span>
-          ))}
+          {(recording || done) && <div className="pb-title" style={{ fontSize: "clamp(2rem, 4vw, 3rem)", marginBottom: "1.2rem" }}>{fmt(seconds)}</div>}
+
+          {!done && (
+            <>
+              <button type="button" className={`pb-record-btn${recording ? " active" : ""}`} onClick={toggleRecording}>
+                {recording ? <div className="pb-stop" /> : <div className="pb-dot" />}
+              </button>
+              <p className="pb-micro">{recording ? "Tap to stop" : "Tap to begin"}</p>
+            </>
+          )}
+
+          {done && (
+            <div className="pb-btn-row">
+              <button type="button" className="pb-btn secondary" onClick={resetRecording}>
+                Record again
+              </button>
+              <button type="button" className="pb-btn" onClick={handleGenerateBook} disabled={generating} style={{ opacity: generating ? 0.75 : 1, cursor: generating ? "wait" : "pointer" }}>
+                <span>{generating ? "Building..." : "Generate Picture Book"}</span>
+              </button>
+            </div>
+          )}
+
+          {done && audioUrl && (
+            <div className="pb-audio">
+              <audio ref={audioPlayerRef} controls src={audioUrl} />
+              <button
+                type="button"
+                onClick={() => {
+                  if (!audioPlayerRef.current) return;
+                  audioPlayerRef.current.currentTime = 0;
+                  void audioPlayerRef.current.play();
+                }}
+                className="pb-btn secondary"
+              >
+                Replay recording
+              </button>
+            </div>
+          )}
+
+          <div style={{ display: "flex", flexWrap: "wrap", gap: ".5rem", justifyContent: "center", marginTop: "1.2rem" }}>
+            {(["visualStyle", "readingLevel", "tone"] as (keyof StoryFilters)[]).map((key) => (
+              <span key={key} className="pb-pill">
+                {getFilterLabel(key, filters[key])}
+              </span>
+            ))}
+          </div>
+
+          {(jobStage || jobResult) && (
+            <div className="pb-panel">
+              <div className="pb-panel-top">
+                <div>
+                  {jobId && <p className="pb-stage">Job: {jobId}</p>}
+                  {jobStage && <p className="pb-stage">Stage: {jobStage.replaceAll("_", " ")}</p>}
+                  <h2 className="pb-book-title">{storyTitle}</h2>
+                </div>
+                {jobStage && jobStage !== "ready" && (
+                  <div className="pb-loader">
+                    <span className="pb-spinner" />
+                    <span>Generating the storybook pages now.</span>
+                  </div>
+                )}
+              </div>
+
+              <div className="pb-summary">
+                <div className="pb-summary-card">
+                  <h3>Clean transcript</h3>
+                  <p>{jobResult?.cleanTranscript ?? jobResult?.transcript ?? "Waiting for transcript..."}</p>
+                </div>
+                <div className="pb-summary-card">
+                  <h3>Story pages</h3>
+                  {paragraphs.length > 0 ? (
+                    <ol>
+                      {paragraphs.map((paragraph, index) => (
+                        <li key={`${index}-${paragraph.slice(0, 12)}`}>{paragraph}</li>
+                      ))}
+                    </ol>
+                  ) : (
+                    <p>Pages will appear here after the AI finishes splitting the story.</p>
+                  )}
+                </div>
+              </div>
+
+              <div className="pb-grid">
+                {pages.map((page) => (
+                  <article key={page.index} className="pb-page-card">
+                    <div className="pb-page-art">
+                      <span className="pb-page-num">Page {page.index + 1}</span>
+                      <img src={page.imageDataUrl} alt={`Illustration for page ${page.index + 1}`} />
+                    </div>
+                    <div className="pb-page-caption">
+                      <p className="pb-copy">{page.paragraph}</p>
+                      <p className="small">{page.imageProvider}{page.imageModel ? ` · ${page.imageModel}` : ""}</p>
+                      <div className="pb-btn-row" style={{ justifyContent: "flex-start", margin: "1rem 0 0" }}>
+                        <a href={page.imageDataUrl} download={buildPageFilename(page)} className="pb-btn secondary">
+                          Download page
+                        </a>
+                      </div>
+                    </div>
+                  </article>
+                ))}
+              </div>
+            </div>
+          )}
         </div>
-
       </div>
     </>
   );

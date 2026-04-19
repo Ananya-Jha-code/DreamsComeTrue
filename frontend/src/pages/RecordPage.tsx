@@ -607,7 +607,7 @@ export default function RecordPage() {
           )}
 
           <div style={{ display: "flex", flexWrap: "wrap", gap: ".5rem", justifyContent: "center", marginTop: "1.2rem" }}>
-            {(["visualStyle", "narratorVoice", "readingLevel", "tone", "pacing"] as (keyof StoryFilters)[]).map((key) => (
+            {(["visualStyle", "readingLevel", "tone"] as (keyof StoryFilters)[]).map((key) => (
               <span key={key} className="pb-pill">
                 {getFilterLabel(key, filters[key])}
               </span>

@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from "react";
-import { Navigate, Route, Routes, useLocation } from "react-router-dom";
+import { useLocation } from "react-router-dom";
 import LandingPage from "./pages/LandingPage";
 import PickerPage from "./pages/PickerPage";
 import RecordPage from "./pages/RecordPage";
@@ -23,7 +23,6 @@ export default function App() {
     if (location.pathname === activePath) return;
 
     const toIdx = PATHS.indexOf(location.pathname);
-    const fwd = toIdx >= prevIdxRef.current;
 
     setPendingPath(location.pathname);
     setAnimating(true);

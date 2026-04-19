@@ -4,11 +4,9 @@ import { FILTER_CONFIG, defaultFilters, getFilterLabel } from "../filters";
 import type { StoryFilters } from "../types/job";
 
 const AXIS_META: Record<string, { emoji: string; color: string; glow: string; bg: string; border: string; desc: string }> = {
-  visualStyle:   { emoji:"🎨", color:"#f472b6", glow:"rgba(244,114,182,.25)", bg:"rgba(244,114,182,.06)", border:"rgba(244,114,182,.25)", desc:"How your film will look" },
-  narratorVoice: { emoji:"🎙️", color:"#60a5fa", glow:"rgba(96,165,250,.25)",  bg:"rgba(96,165,250,.06)",  border:"rgba(96,165,250,.25)",  desc:"Who tells your story" },
+  visualStyle:   { emoji:"🎨", color:"#f472b6", glow:"rgba(244,114,182,.25)", bg:"rgba(244,114,182,.06)", border:"rgba(244,114,182,.25)", desc:"How your storybook will look" },
   readingLevel:  { emoji:"📖", color:"#34d399", glow:"rgba(52,211,153,.25)",  bg:"rgba(52,211,153,.06)",  border:"rgba(52,211,153,.25)",  desc:"Vocabulary & complexity" },
-  tone:          { emoji:"🌙", color:"#a78bfa", glow:"rgba(167,139,250,.25)", bg:"rgba(167,139,250,.06)", border:"rgba(167,139,250,.25)", desc:"Emotional feel of the film" },
-  pacing:        { emoji:"⏱️", color:"#fb923c", glow:"rgba(251,146,60,.25)",  bg:"rgba(251,146,60,.06)",  border:"rgba(251,146,60,.25)",  desc:"Rhythm of narration & shots" },
+  tone:          { emoji:"🌙", color:"#a78bfa", glow:"rgba(167,139,250,.25)", bg:"rgba(167,139,250,.06)", border:"rgba(167,139,250,.25)", desc:"Emotional feel of the pages" },
 };
 
 // ─── VISUAL STYLE thumbnails ───────────────────────────────────────────────
@@ -149,219 +147,6 @@ const VISUAL_THUMBS: Record<string, React.FC> = {
       <circle cx="173" cy="52" r="20" fill="#48c030" filter="url(#cr-w)"/>
       <circle cx="16" cy="84" r="4.5" fill="#f06080"/><rect x="14" y="87" width="3" height="12" fill="#48a030"/>
       <circle cx="188" cy="82" r="4.5" fill="#f0a030"/><rect x="186" y="85" width="3" height="13" fill="#48a030"/>
-    </svg>
-  ),
-};
-
-// ─── NARRATOR VOICE thumbnails ─────────────────────────────────────────────
-const NARRATOR_THUMBS: Record<string, React.FC> = {
-  warm_mother: () => (
-    <svg viewBox="0 0 200 110" xmlns="http://www.w3.org/2000/svg" style={{width:"100%",height:"100%",display:"block"}}>
-      <defs><radialGradient id="nm-bg" cx="50%" cy="60%" r="70%"><stop offset="0%" stopColor="#2a1a0e"/><stop offset="100%" stopColor="#120a04"/></radialGradient></defs>
-      <rect width="200" height="110" fill="url(#nm-bg)"/>
-      {/* Warm firelight glow */}
-      <ellipse cx="100" cy="95" rx="70" ry="30" fill="#f0820a" opacity="0.18"/>
-      <ellipse cx="100" cy="100" rx="50" ry="20" fill="#f5a030" opacity="0.22"/>
-      {/* Mother silhouette */}
-      <ellipse cx="100" cy="44" rx="18" ry="20" fill="#c8784a"/>
-      {/* Hair */}
-      <ellipse cx="100" cy="30" rx="20" ry="14" fill="#5a2e10"/>
-      <ellipse cx="84" cy="38" rx="8" ry="16" fill="#5a2e10"/>
-      <ellipse cx="116" cy="38" rx="8" ry="16" fill="#5a2e10"/>
-      {/* Body / holding baby */}
-      <ellipse cx="100" cy="78" rx="28" ry="20" fill="#c8784a"/>
-      {/* Baby bundle */}
-      <ellipse cx="100" cy="72" rx="14" ry="10" fill="#f0e0d0"/>
-      <ellipse cx="100" cy="67" rx="7" ry="7" fill="#e8b090"/>
-      {/* Warm sparkles */}
-      <circle cx="40" cy="20" r="1.5" fill="#f5c060" opacity="0.7"/>
-      <circle cx="160" cy="15" r="1.2" fill="#f5c060" opacity="0.6"/>
-      <circle cx="170" cy="40" r="1" fill="#f5c060" opacity="0.5"/>
-      <circle cx="30" cy="50" r="1.3" fill="#f5a030" opacity="0.6"/>
-      {/* Halo / warmth ring */}
-      <circle cx="100" cy="40" r="32" fill="none" stroke="#f0a030" strokeWidth="0.5" opacity="0.3"/>
-      <circle cx="100" cy="40" r="42" fill="none" stroke="#f0a030" strokeWidth="0.3" opacity="0.15"/>
-    </svg>
-  ),
-  wise_grandfather: () => (
-    <svg viewBox="0 0 200 110" xmlns="http://www.w3.org/2000/svg" style={{width:"100%",height:"100%",display:"block"}}>
-      <defs><radialGradient id="wg-bg" cx="40%" cy="40%" r="70%"><stop offset="0%" stopColor="#1a1e2e"/><stop offset="100%" stopColor="#0a0c14"/></radialGradient></defs>
-      <rect width="200" height="110" fill="url(#wg-bg)"/>
-      {/* Stars / night library */}
-      <circle cx="20" cy="12" r="1" fill="white" opacity="0.6"/><circle cx="50" cy="8" r="0.8" fill="white" opacity="0.5"/>
-      <circle cx="150" cy="10" r="1.2" fill="white" opacity="0.7"/><circle cx="180" cy="20" r="0.9" fill="white" opacity="0.5"/>
-      <circle cx="80" cy="18" r="0.7" fill="white" opacity="0.4"/>
-      {/* Bookshelf silhouette */}
-      <rect x="0" y="70" width="200" height="40" fill="#1e1408"/>
-      <rect x="10" y="55" width="8" height="20" fill="#8b4513"/><rect x="20" y="58" width="6" height="17" fill="#4a6fa5"/>
-      <rect x="28" y="52" width="9" height="23" fill="#8b1a1a"/><rect x="39" y="56" width="7" height="19" fill="#2d6a2d"/>
-      <rect x="148" y="54" width="8" height="21" fill="#7a3a00"/><rect x="158" y="57" width="7" height="18" fill="#3a3a8b"/>
-      <rect x="167" y="53" width="9" height="22" fill="#6b2222"/><rect x="178" y="55" width="8" height="20" fill="#1a5a1a"/>
-      {/* Grandfather silhouette */}
-      <ellipse cx="100" cy="50" rx="16" ry="18" fill="#d4b896"/>
-      {/* White hair */}
-      <ellipse cx="100" cy="36" rx="17" ry="11" fill="#e8e8e8"/>
-      <ellipse cx="85" cy="42" rx="6" ry="12" fill="#e0e0e0"/>
-      <ellipse cx="115" cy="42" rx="6" ry="12" fill="#e0e0e0"/>
-      {/* Glasses */}
-      <circle cx="94" cy="50" r="5" fill="none" stroke="#c0a060" strokeWidth="1.2"/>
-      <circle cx="106" cy="50" r="5" fill="none" stroke="#c0a060" strokeWidth="1.2"/>
-      <line x1="99" y1="50" x2="101" y2="50" stroke="#c0a060" strokeWidth="1"/>
-      {/* Body */}
-      <rect x="82" y="64" width="36" height="22" rx="4" fill="#3a3a5a"/>
-      {/* Pipe smoke */}
-      <path d="M120 58 Q125 50 122 42 Q119 34 124 28" stroke="#aaaaaa" strokeWidth="1" fill="none" opacity="0.4" strokeLinecap="round"/>
-      <circle cx="124" cy="26" r="3" fill="#aaaaaa" opacity="0.2"/>
-    </svg>
-  ),
-  playful_sister: () => (
-    <svg viewBox="0 0 200 110" xmlns="http://www.w3.org/2000/svg" style={{width:"100%",height:"100%",display:"block"}}>
-      <defs><radialGradient id="ps-bg" cx="50%" cy="50%" r="70%"><stop offset="0%" stopColor="#1a0a2e"/><stop offset="100%" stopColor="#0a0518"/></radialGradient></defs>
-      <rect width="200" height="110" fill="url(#ps-bg)"/>
-      {/* Confetti / sparkles everywhere */}
-      <circle cx="20" cy="15" r="3" fill="#f472b6" opacity="0.8"/>
-      <rect x="45" y="10" width="5" height="5" fill="#60a5fa" opacity="0.7" transform="rotate(30,47,12)"/>
-      <circle cx="80" cy="8" r="2.5" fill="#fbbf24" opacity="0.8"/>
-      <rect x="110" y="12" width="4" height="4" fill="#34d399" opacity="0.7" transform="rotate(20,112,14)"/>
-      <circle cx="150" cy="9" r="3" fill="#f472b6" opacity="0.7"/>
-      <rect x="170" y="15" width="5" height="5" fill="#a78bfa" opacity="0.8" transform="rotate(45,172,17)"/>
-      <circle cx="35" cy="85" r="2" fill="#60a5fa" opacity="0.6"/>
-      <circle cx="165" cy="90" r="2.5" fill="#fbbf24" opacity="0.7"/>
-      <rect x="185" y="70" width="4" height="4" fill="#f472b6" opacity="0.6" transform="rotate(15,187,72)"/>
-      {/* Sister silhouette - ponytail, energetic pose */}
-      <ellipse cx="100" cy="48" rx="17" ry="19" fill="#f0b090"/>
-      {/* Hair with ponytail */}
-      <ellipse cx="100" cy="34" rx="18" ry="12" fill="#c06030"/>
-      <ellipse cx="83" cy="42" rx="7" ry="14" fill="#c06030"/>
-      <ellipse cx="118" cy="38" rx="7" ry="12" fill="#c06030"/>
-      {/* Ponytail */}
-      <path d="M116 34 Q130 28 128 20" stroke="#c06030" strokeWidth="6" fill="none" strokeLinecap="round"/>
-      {/* Big smile */}
-      <path d="M91 54 Q100 62 109 54" stroke="#a06040" strokeWidth="1.5" fill="none" strokeLinecap="round"/>
-      {/* Eyes wide */}
-      <ellipse cx="93" cy="48" rx="4" ry="4.5" fill="#3a2010"/>
-      <ellipse cx="107" cy="48" rx="4" ry="4.5" fill="#3a2010"/>
-      <circle cx="94.5" cy="46.5" r="1.5" fill="white" opacity="0.9"/>
-      <circle cx="108.5" cy="46.5" r="1.5" fill="white" opacity="0.9"/>
-      {/* Body with dress */}
-      <polygon points="78,68 100,64 122,68 118,92 82,92" fill="#f472b6"/>
-      {/* Star wand */}
-      <line x1="120" y1="65" x2="150" y2="35" stroke="#fbbf24" strokeWidth="2"/>
-      <polygon points="155,28 158,36 166,36 160,41 162,49 155,44 148,49 150,41 144,36 152,36" fill="#fbbf24" opacity="0.9"/>
-    </svg>
-  ),
-  gentle_father: () => (
-    <svg viewBox="0 0 200 110" xmlns="http://www.w3.org/2000/svg" style={{width:"100%",height:"100%",display:"block"}}>
-      <defs><radialGradient id="gf-bg" cx="50%" cy="40%" r="70%"><stop offset="0%" stopColor="#0e1a10"/><stop offset="100%" stopColor="#060c08"/></radialGradient></defs>
-      <rect width="200" height="110" fill="url(#gf-bg)"/>
-      {/* Forest / nature background */}
-      <ellipse cx="30" cy="110" rx="35" ry="50" fill="#1a3a1a"/>
-      <ellipse cx="170" cy="110" rx="35" ry="50" fill="#1a3a1a"/>
-      <ellipse cx="100" cy="110" rx="60" ry="40" fill="#234a23"/>
-      {/* Fireflies */}
-      <circle cx="25" cy="45" r="2" fill="#c8f060" opacity="0.7"/>
-      <circle cx="175" cy="35" r="1.8" fill="#c8f060" opacity="0.6"/>
-      <circle cx="50" cy="25" r="1.5" fill="#d0f070" opacity="0.5"/>
-      <circle cx="160" cy="60" r="2" fill="#c8f060" opacity="0.65"/>
-      <circle cx="140" cy="20" r="1.5" fill="#d0f070" opacity="0.5"/>
-      {/* Father silhouette */}
-      <ellipse cx="100" cy="46" rx="18" ry="20" fill="#c8906a"/>
-      {/* Short hair */}
-      <ellipse cx="100" cy="32" rx="19" ry="11" fill="#3a2010"/>
-      <ellipse cx="83" cy="38" rx="7" ry="10" fill="#3a2010"/>
-      {/* Gentle expression */}
-      <path d="M92 54 Q100 60 108 54" stroke="#8a5030" strokeWidth="1.5" fill="none" strokeLinecap="round"/>
-      <ellipse cx="93" cy="47" rx="3.5" ry="3.5" fill="#2a1a08"/>
-      <ellipse cx="107" cy="47" rx="3.5" ry="3.5" fill="#2a1a08"/>
-      <circle cx="94" cy="46" r="1.2" fill="white" opacity="0.8"/>
-      <circle cx="108" cy="46" r="1.2" fill="white" opacity="0.8"/>
-      {/* Body / flannel shirt */}
-      <rect x="80" y="62" width="40" height="24" rx="4" fill="#4a6a3a"/>
-      {/* Child on shoulders (small head) */}
-      <ellipse cx="100" cy="22" rx="10" ry="11" fill="#e8b090"/>
-      <ellipse cx="100" cy="14" rx="11" ry="7" fill="#5a3010"/>
-      <ellipse cx="100" cy="22" rx="2.5" ry="3" fill="#2a1a08"/>
-      <path d="M95 27 Q100 31 105 27" stroke="#8a5030" strokeWidth="1" fill="none" strokeLinecap="round"/>
-      {/* Arms up holding child */}
-      <path d="M82 70 Q70 50 90 28" stroke="#c8906a" strokeWidth="8" fill="none" strokeLinecap="round"/>
-      <path d="M118 70 Q130 50 110 28" stroke="#c8906a" strokeWidth="8" fill="none" strokeLinecap="round"/>
-    </svg>
-  ),
-  mysterious_narrator: () => (
-    <svg viewBox="0 0 200 110" xmlns="http://www.w3.org/2000/svg" style={{width:"100%",height:"100%",display:"block"}}>
-      <defs>
-        <radialGradient id="mn-bg" cx="50%" cy="50%" r="60%"><stop offset="0%" stopColor="#0e0a1e"/><stop offset="100%" stopColor="#040208"/></radialGradient>
-        <radialGradient id="mn-orb" cx="50%" cy="50%" r="50%"><stop offset="0%" stopColor="#7030f0" stopOpacity="0.8"/><stop offset="100%" stopColor="#300860" stopOpacity="0"/></radialGradient>
-      </defs>
-      <rect width="200" height="110" fill="url(#mn-bg)"/>
-      {/* Mystical orb glow */}
-      <circle cx="100" cy="55" r="45" fill="url(#mn-orb)"/>
-      {/* Floating particles */}
-      <circle cx="30" cy="20" r="1.5" fill="#9060f0" opacity="0.7"/>
-      <circle cx="170" cy="15" r="1.2" fill="#b080ff" opacity="0.6"/>
-      <circle cx="45" cy="75" r="1.8" fill="#7040d0" opacity="0.65"/>
-      <circle cx="160" cy="80" r="1.5" fill="#9060f0" opacity="0.7"/>
-      <circle cx="80" cy="10" r="1" fill="#c090ff" opacity="0.5"/>
-      <circle cx="130" cy="90" r="1.3" fill="#8050e0" opacity="0.6"/>
-      {/* Hooded figure */}
-      {/* Cape */}
-      <ellipse cx="100" cy="80" rx="40" ry="30" fill="#1a0a30"/>
-      {/* Hood */}
-      <ellipse cx="100" cy="48" rx="22" ry="28" fill="#1a0a30"/>
-      <ellipse cx="100" cy="38" rx="18" ry="20" fill="#120820"/>
-      {/* Glowing eyes only */}
-      <ellipse cx="93" cy="48" rx="4" ry="3" fill="#7030f0" opacity="0.9"/>
-      <ellipse cx="107" cy="48" rx="4" ry="3" fill="#7030f0" opacity="0.9"/>
-      <ellipse cx="93" cy="48" rx="2" ry="1.5" fill="#c090ff"/>
-      <ellipse cx="107" cy="48" rx="2" ry="1.5" fill="#c090ff"/>
-      {/* Crystal ball */}
-      <circle cx="100" cy="60" r="12" fill="none" stroke="#7030f0" strokeWidth="0.8" opacity="0.6"/>
-      <circle cx="100" cy="60" r="8" fill="#200840" opacity="0.9"/>
-      <circle cx="100" cy="60" r="5" fill="#5020a0" opacity="0.7"/>
-      <circle cx="97" cy="57" r="2" fill="#c090ff" opacity="0.5"/>
-      {/* Swirling magic lines */}
-      <path d="M60 30 Q80 20 100 30 Q120 40 140 30" stroke="#7030f0" strokeWidth="0.8" fill="none" opacity="0.4" strokeLinecap="round"/>
-      <path d="M55 85 Q80 95 100 85 Q120 75 145 85" stroke="#7030f0" strokeWidth="0.8" fill="none" opacity="0.3" strokeLinecap="round"/>
-    </svg>
-  ),
-  kid_narrator: () => (
-    <svg viewBox="0 0 200 110" xmlns="http://www.w3.org/2000/svg" style={{width:"100%",height:"100%",display:"block"}}>
-      <defs><radialGradient id="kn-bg" cx="50%" cy="50%" r="70%"><stop offset="0%" stopColor="#0a1e30"/><stop offset="100%" stopColor="#050f18"/></radialGradient></defs>
-      <rect width="200" height="110" fill="url(#kn-bg)"/>
-      {/* Dreamy bedroom ceiling — glow-in-dark stars */}
-      <circle cx="30" cy="15" r="2" fill="#a0e0ff" opacity="0.5"/>
-      <circle cx="60" cy="8" r="1.5" fill="#c0f0ff" opacity="0.6"/>
-      <circle cx="100" cy="12" r="1.8" fill="#a0e0ff" opacity="0.55"/>
-      <circle cx="140" cy="7" r="1.5" fill="#c0f0ff" opacity="0.5"/>
-      <circle cx="170" cy="14" r="2" fill="#a0e0ff" opacity="0.55"/>
-      <circle cx="185" cy="30" r="1.2" fill="#c0f0ff" opacity="0.4"/>
-      <circle cx="15" cy="40" r="1.5" fill="#a0e0ff" opacity="0.45"/>
-      {/* Star shapes */}
-      <path d="M80 22 L81.5 26 L86 26 L82.5 28.5 L84 33 L80 30 L76 33 L77.5 28.5 L74 26 L78.5 26 Z" fill="#ffd060" opacity="0.5"/>
-      <path d="M155 25 L156 28 L159 28 L156.5 30 L157.5 33 L155 31.5 L152.5 33 L153.5 30 L151 28 L154 28 Z" fill="#ffd060" opacity="0.4"/>
-      {/* Bed / pillow */}
-      <rect x="30" y="75" width="140" height="35" rx="6" fill="#1a3050"/>
-      <ellipse cx="100" cy="75" rx="70" ry="10" fill="#2a4060"/>
-      {/* Pillow */}
-      <ellipse cx="100" cy="72" rx="35" ry="10" fill="#e8e0f0"/>
-      {/* Kid lying down */}
-      <ellipse cx="100" cy="66" rx="16" ry="16" fill="#f0c090"/>
-      {/* Hair tousled */}
-      <ellipse cx="100" cy="54" rx="17" ry="11" fill="#5a3010"/>
-      <ellipse cx="86" cy="60" rx="6" ry="10" fill="#5a3010"/>
-      <ellipse cx="114" cy="60" rx="6" ry="10" fill="#5a3010"/>
-      {/* Sleepy eyes half closed */}
-      <path d="M91 66 Q96 63 101 66" stroke="#3a2010" strokeWidth="2" fill="none" strokeLinecap="round"/>
-      <path d="M99 66 Q104 63 109 66" stroke="#3a2010" strokeWidth="2" fill="none" strokeLinecap="round"/>
-      {/* Cozy smile */}
-      <path d="M94 73 Q100 77 106 73" stroke="#a06040" strokeWidth="1.5" fill="none" strokeLinecap="round"/>
-      {/* Teddy bear peeking */}
-      <ellipse cx="148" cy="70" rx="12" ry="13" fill="#a06030"/>
-      <ellipse cx="141" cy="63" rx="5" ry="5" fill="#a06030"/>
-      <ellipse cx="155" cy="63" rx="5" ry="5" fill="#a06030"/>
-      <ellipse cx="144" cy="69" rx="2" ry="2" fill="#6a3010"/>
-      <ellipse cx="152" cy="69" rx="2" ry="2" fill="#6a3010"/>
-      <ellipse cx="148" cy="73" rx="4" ry="3" fill="#8a4820"/>
     </svg>
   ),
 };
@@ -663,109 +448,11 @@ const TONE_THUMBS: Record<string, React.FC> = {
   ),
 };
 
-// ─── PACING thumbnails ──────────────────────────────────────────────────────
-const PACING_THUMBS: Record<string, React.FC> = {
-  unhurried: () => (
-    <svg viewBox="0 0 200 110" xmlns="http://www.w3.org/2000/svg" style={{width:"100%",height:"100%",display:"block"}}>
-      <defs>
-        <radialGradient id="un-bg" cx="50%" cy="40%" r="70%"><stop offset="0%" stopColor="#0a1428"/><stop offset="100%" stopColor="#040810"/></radialGradient>
-        <filter id="un-blur"><feGaussianBlur stdDeviation="6"/></filter>
-      </defs>
-      <rect width="200" height="110" fill="url(#un-bg)"/>
-      {/* Calm water / reflection */}
-      <rect x="0" y="65" width="200" height="45" fill="#060e1c"/>
-      {/* Moon reflection */}
-      <ellipse cx="100" cy="88" rx="12" ry="4" fill="#d8c870" opacity="0.25" filter="url(#un-blur)"/>
-      {/* Gentle waves */}
-      <path d="M0 68 Q25 65 50 68 Q75 71 100 68 Q125 65 150 68 Q175 71 200 68" stroke="#1a3050" strokeWidth="1.5" fill="none" opacity="0.7"/>
-      <path d="M0 74 Q30 70 60 74 Q90 78 120 74 Q150 70 180 74 Q190 76 200 74" stroke="#1a3050" strokeWidth="1" fill="none" opacity="0.5"/>
-      {/* Moon */}
-      <circle cx="100" cy="30" r="20" fill="#e8d870" opacity="0.15" filter="url(#un-blur)"/>
-      <circle cx="100" cy="30" r="16" fill="#e8d870" opacity="0.4"/>
-      <circle cx="100" cy="30" r="13" fill="#f0e890"/>
-      {/* Soft glow */}
-      <circle cx="100" cy="30" r="25" fill="#f0e890" opacity="0.08" filter="url(#un-blur)"/>
-      {/* Distant mountain silhouette */}
-      <path d="M0 65 Q40 45 70 65 Q100 80 130 58 Q155 42 200 65" fill="#0a1420" opacity="0.9"/>
-      {/* A single boat */}
-      <path d="M82 68 Q100 64 118 68 L116 72 L84 72 Z" fill="#1a2e48"/>
-      <line x1="100" y1="64" x2="100" y2="52" stroke="#2a4060" strokeWidth="1.5"/>
-      <path d="M100 52 L118 62 L100 64 Z" fill="#2a4060" opacity="0.7"/>
-      {/* Stars */}
-      <circle cx="22" cy="14" r="1.2" fill="white" opacity="0.5"/>
-      <circle cx="55" cy="8" r="0.9" fill="white" opacity="0.4"/>
-      <circle cx="145" cy="10" r="1.1" fill="white" opacity="0.5"/>
-      <circle cx="178" cy="16" r="0.8" fill="white" opacity="0.4"/>
-    </svg>
-  ),
-  natural: () => (
-    <svg viewBox="0 0 200 110" xmlns="http://www.w3.org/2000/svg" style={{width:"100%",height:"100%",display:"block"}}>
-      <defs><linearGradient id="na-sky" x1="0%" y1="0%" x2="0%" y2="100%"><stop offset="0%" stopColor="#0e1e38"/><stop offset="100%" stopColor="#1a3050"/></linearGradient></defs>
-      <rect width="200" height="110" fill="url(#na-sky)"/>
-      {/* Golden hour horizon */}
-      <rect x="0" y="65" width="200" height="45" fill="#1a2e10"/>
-      <ellipse cx="100" cy="65" rx="200" ry="20" fill="#c87820" opacity="0.3"/>
-      <ellipse cx="100" cy="65" rx="150" ry="12" fill="#f09030" opacity="0.2"/>
-      {/* Sun setting */}
-      <circle cx="100" cy="64" r="18" fill="#f0a020" opacity="0.7"/>
-      <circle cx="100" cy="64" r="12" fill="#f8c030"/>
-      {/* Birds in flight — natural rhythm */}
-      <path d="M30 28 Q35 24 40 28" stroke="#c8d8e8" strokeWidth="1.5" fill="none" strokeLinecap="round"/>
-      <path d="M50 20 Q56 15 62 20" stroke="#c8d8e8" strokeWidth="1.5" fill="none" strokeLinecap="round"/>
-      <path d="M70 26 Q75 22 80 26" stroke="#c8d8e8" strokeWidth="1.5" fill="none" strokeLinecap="round"/>
-      <path d="M130 22 Q136 17 142 22" stroke="#c8d8e8" strokeWidth="1.5" fill="none" strokeLinecap="round"/>
-      <path d="M150 30 Q155 25 160 30" stroke="#c8d8e8" strokeWidth="1.5" fill="none" strokeLinecap="round"/>
-      <path d="M170 20 Q176 15 182 20" stroke="#c8d8e8" strokeWidth="1.5" fill="none" strokeLinecap="round"/>
-      {/* Tree silhouettes */}
-      <rect x="20" y="45" width="5" height="30" fill="#0e1e08"/>
-      <ellipse cx="22" cy="42" rx="14" ry="18" fill="#0e1e08"/>
-      <rect x="174" y="48" width="5" height="27" fill="#0e1e08"/>
-      <ellipse cx="176" cy="45" rx="13" ry="16" fill="#0e1e08"/>
-      {/* Gentle hill */}
-      <ellipse cx="100" cy="110" rx="150" ry="45" fill="#1a3010"/>
-      {/* Stars barely visible */}
-      <circle cx="160" cy="10" r="1" fill="white" opacity="0.4"/>
-      <circle cx="40" cy="8" r="0.8" fill="white" opacity="0.3"/>
-    </svg>
-  ),
-  brisk: () => (
-    <svg viewBox="0 0 200 110" xmlns="http://www.w3.org/2000/svg" style={{width:"100%",height:"100%",display:"block"}}>
-      <defs><linearGradient id="br-bg" x1="0%" y1="0%" x2="100%" y2="100%"><stop offset="0%" stopColor="#050818"/><stop offset="100%" stopColor="#180510"/></linearGradient></defs>
-      <rect width="200" height="110" fill="url(#br-bg)"/>
-      {/* Speed lines — motion blur effect */}
-      <g stroke="#1a2a50" strokeWidth="1" opacity="0.7">
-        <line x1="0" y1="20" x2="180" y2="18"/><line x1="0" y1="28" x2="160" y2="26"/>
-        <line x1="20" y1="36" x2="200" y2="34"/><line x1="0" y1="44" x2="140" y2="42"/>
-        <line x1="40" y1="52" x2="200" y2="50"/><line x1="0" y1="60" x2="170" y2="58"/>
-        <line x1="10" y1="68" x2="200" y2="66"/><line x1="0" y1="76" x2="150" y2="74"/>
-      </g>
-      <g stroke="#2a3a70" strokeWidth="0.6" opacity="0.5">
-        <line x1="0" y1="24" x2="120" y2="22"/><line x1="60" y1="32" x2="200" y2="30"/>
-        <line x1="0" y1="56" x2="90" y2="54"/><line x1="100" y1="64" x2="200" y2="62"/>
-      </g>
-      {/* Lightning bolt */}
-      <polygon points="108,12 95,50 103,50 92,98 122,48 111,48 125,12" fill="#f0c020" opacity="0.9"/>
-      <polygon points="108,12 95,50 103,50 92,98 122,48 111,48 125,12" fill="none" stroke="#fff080" strokeWidth="1" opacity="0.6"/>
-      {/* Glow around bolt */}
-      <polygon points="108,12 95,50 103,50 92,98 122,48 111,48 125,12" fill="#f0c020" opacity="0.15" filter="url(#un-blur)"/>
-      {/* Stars streaking */}
-      <line x1="170" y1="15" x2="185" y2="12" stroke="white" strokeWidth="1.5" opacity="0.7"/>
-      <line x1="20" y1="85" x2="38" y2="82" stroke="white" strokeWidth="1.2" opacity="0.6"/>
-      <line x1="155" y1="80" x2="175" y2="77" stroke="white" strokeWidth="1.2" opacity="0.65"/>
-      <circle cx="186" cy="12" r="1.5" fill="white" opacity="0.9"/>
-      <circle cx="38" cy="82" r="1.2" fill="white" opacity="0.7"/>
-      <circle cx="175" cy="77" r="1.2" fill="white" opacity="0.7"/>
-    </svg>
-  ),
-};
-
 // Map axis key -> thumbnail lookup
 const ALL_THUMBS: Record<string, Record<string, React.FC>> = {
   visualStyle: VISUAL_THUMBS,
-  narratorVoice: NARRATOR_THUMBS,
   readingLevel: READING_THUMBS,
   tone: TONE_THUMBS,
-  pacing: PACING_THUMBS,
 };
 
 export default function PickerPage() {
@@ -822,7 +509,7 @@ export default function PickerPage() {
             <div style={{marginBottom:"2.5rem"}}>
               <p className="pk-step-label">Step 1 of 2</p>
               <h1 className="pk-heading">Choose your <em>version</em></h1>
-              <p className="pk-sub">Every axis shapes your film. Pick one per row — or keep the defaults and begin immediately.</p>
+              <p className="pk-sub">Every axis shapes your storybook. Pick one per row — or keep the defaults and begin immediately.</p>
             </div>
 
             <div className="pk-progress">

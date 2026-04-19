@@ -18,10 +18,8 @@ export interface PictureBookPage {
 
 export interface StoryFilters {
   visualStyle: string;
-  narratorVoice: string;
   readingLevel: string;
   tone: string;
-  pacing: string;
 }
 
 export interface JobRecord {

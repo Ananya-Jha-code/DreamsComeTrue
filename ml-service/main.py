@@ -25,10 +25,8 @@ def _check_token(x_ml_token: str | None) -> None:
 
 class Filters(BaseModel):
     visualStyle: str = "watercolor"
-    narratorVoice: str = "warm_mother"
     readingLevel: str = "early_reader"
     tone: str = "cozy"
-    pacing: str = "unhurried"
 
 
 class TranscribeRequest(BaseModel):

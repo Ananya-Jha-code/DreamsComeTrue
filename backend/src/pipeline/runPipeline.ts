@@ -15,14 +15,6 @@ const FILTER_LABELS: Record<string, Record<string, string>> = {
     charcoal: "Charcoal Sketch",
     crayon: "Crayon Drawing",
   },
-  narratorVoice: {
-    warm_mother: "Warm Mother",
-    wise_grandfather: "Wise Grandfather",
-    playful_sister: "Playful Sister",
-    gentle_father: "Gentle Father",
-    mysterious_narrator: "Mysterious Narrator",
-    kid_narrator: "Kid Narrator",
-  },
   readingLevel: {
     toddler: "Toddler",
     early_reader: "Early Reader",
@@ -35,11 +27,6 @@ const FILTER_LABELS: Record<string, Record<string, string>> = {
     whimsical: "Whimsical",
     mysterious: "Mysterious",
     tender: "Tender",
-  },
-  pacing: {
-    unhurried: "Unhurried",
-    natural: "Natural",
-    brisk: "Brisk",
   },
 };
 
