@@ -8,123 +8,91 @@
 [![Together FLUX](https://img.shields.io/badge/Images-Together%20FLUX-blue?style=flat-square)](https://www.together.ai)
 [![ElevenLabs](https://img.shields.io/badge/Voice-ElevenLabs%20Scribe%20v2-yellow?style=flat-square)](https://elevenlabs.io)
 
-DreamsComeTrue turns a spoken story into a multi-page illustrated picture book. You choose a visual style, reading level, and tone before you record. The app transcribes the audio, cleans and structures the story, and generates page illustrations that arrive progressively in the UI.
+DreamsComeTrue turns a spoken story into a multi-page illustrated picture book. You pick a visual style, reading level, and tone, record your story, and the app transcribes, cleans, structures, and illustrates it page by page.
 
-## Overview
+## What It Does
 
-The app is split into three services:
+- Records a story in the browser and sends the audio to the backend.
+- Transcribes speech with ElevenLabs Scribe v2.
+- Uses K2 Think v2 to clean the transcript and shape it into picture-book pages.
+- Generates one illustration per page with Together FLUX.
+- Streams job progress back to the UI so pages appear as they are ready.
 
-- Frontend: React, Vite, Tailwind CSS, Three.js
-- Backend: Express, TypeScript, Zod
-- ML service: FastAPI, Python, httpx
+## Project Structure
 
-The backend handles jobs and orchestration. The ML service handles transcription, story cleanup, and illustration generation. The frontend polls the backend for job updates so pages can appear as they are ready.
+```text
+.
+├── backend/        Express API, job store, and orchestration pipeline
+├── frontend/       React + Vite storybook UI
+├── ml-service/     FastAPI service for transcription, cleanup, and image generation
+├── DEPLOYMENT.md   Deployment plan
+└── render.yaml     Render Blueprint for backend and ML service
+```
 
-## Architecture Diagram
+## Architecture
 
 ```mermaid
 flowchart LR
 	user[User] --> ui[Frontend<br/>React + Vite + Tailwind + Three.js]
-	ui -- POST /jobs, polling --> api[Backend<br/>Express + TypeScript + Zod]
+	ui -- POST /api/jobs, polling --> api[Backend<br/>Express + TypeScript + Zod]
 	api -- x-ml-token --> ml[ML Service<br/>FastAPI + Python + httpx]
 
 	ml --> stt[ElevenLabs Scribe v2<br/>Transcription]
-	ml --> k2[K2 Think v2<br/>Cleanup + story structuring]
+	ml --> k2[K2 Think v2<br/>Cleanup + page structuring]
 	ml --> img[Together FLUX<br/>Illustration generation]
 
 	api -. stores status .-> store[Job store]
 	ui -. renders pages .-> book[Picture-book UI]
-	stt --> ml
-	k2 --> ml
-	img --> ml
 ```
 
-The frontend sends audio and filter choices to the backend. The backend creates and tracks jobs, then asks the ML service to transcribe, clean, and illustrate the story. The ML service calls the external AI providers and returns structured results that the frontend can render page by page.
+The frontend posts audio and filter choices to the backend. The backend creates a job, tracks its state, and calls the ML service. The ML service keeps provider credentials out of the browser and returns structured results that the UI can render incrementally.
 
-## Pipeline
+## Local Setup
 
-1. Record voice in the browser.
-2. Send the audio to ElevenLabs Scribe v2 for transcription.
-3. Use K2 Think v2 to clean the transcript, choose a title, and split the story into picture-book pages.
-4. Use Together FLUX to generate one illustration per page.
-5. Stream the finished pages back into the book view.
-
-## Why It Is Split This Way
-
-The ML service keeps provider API keys out of the frontend. The backend and ML service authenticate with a shared token, so provider changes stay isolated from the UI.
-
-The job flow is asynchronous because image generation takes time. The backend responds quickly and the frontend refreshes the job record until the full book is ready.
-
-## Repository Layout
-
-```text
-.
-├── backend/        Express API and job pipeline
-├── frontend/       React app and UI
-├── ml-service/     FastAPI transcription and generation service
-├── DEPLOYMENT.md   Deployment guidance
-└── README.md       Project overview and setup
-```
-
-## Requirements
+Requirements:
 
 - Node.js 20+
 - Python 3.12+
-- API keys for ElevenLabs, Together, and K2 Think
+- API keys for ElevenLabs, K2 Think, and Together
 
-## Install Dependencies
-
-From the repository root:
+Install dependencies from the repository root:
 
 ```bash
 npm install
 py -3.12 -m pip install -r ml-service/requirements.txt
-cp .env.example .env   # macOS/Linux
-copy .env.example .env
 ```
+
+Create a root `.env` file with the values below.
 
 ## Run Locally
 
-### Option 1: Run everything together
+Run all services together:
 
 ```bash
 npm run dev:full
 ```
 
-This starts the frontend, backend, and ML service together. The ML service uses:
+Run the frontend and backend only:
 
 ```bash
+npm run dev
+```
+
+Run each service separately if you need to debug one piece at a time:
+
+```bash
+npm run dev -w backend
+npm run dev -w frontend
 py -3.12 -m uvicorn main:app --reload --port 8000 --app-dir ml-service
 ```
 
-### Option 2: Run each service separately
+The Vite dev server proxies `/api` to `http://localhost:3001`, so the frontend works with the backend without extra client configuration.
 
-Backend:
-
-```bash
-cd backend
-npm run dev
-```
-
-Frontend:
-
-```bash
-cd frontend
-npm run dev
-```
-
-ML service:
-
-```bash
-cd ml-service
-py -3.12 -m uvicorn main:app --reload --port 8000
-```
-
-Open `http://localhost:5173` in your browser.
+Open `http://localhost:5173` after the frontend starts.
 
 ## Environment Variables
 
-### `.env` (repository root)
+### Root `.env`
 
 ```env
 PORT=3001
@@ -175,42 +143,31 @@ npm run build -w backend
 npm run start -w backend
 ```
 
-## Deployment Notes
+## Deployment
 
 - Frontend: Vercel
-- Backend and ML service: Render (free web services)
-- Keep the ML service behind an internal token and do not expose provider keys in the browser
+- Backend and ML service: Render
+- Use `render.yaml` at the repository root for the Render Blueprint
+- Keep `ML_SERVICE_TOKEN` identical in both backend and ML service environments
+- Do not expose provider API keys to the browser
 
-### Render Setup (Backend + ML Service)
+Suggested deployment wiring:
 
-1. In Render, create a new Blueprint and point it at this repository.
-2. Use `render.yaml` from the repository root.
-3. After services are created, set these required environment values:
+1. Deploy the Render Blueprint from `render.yaml`.
+2. Set backend `ML_SERVICE_URL` to the Render ML service URL.
+3. Set backend `ML_SERVICE_TOKEN` and ML service `ML_SERVICE_TOKEN` to the same shared secret.
+4. Set backend `FRONTEND_ORIGIN` to your Vercel domain.
+5. Set `VITE_API_BASE_URL` in Vercel to your backend Render URL.
 
-Backend service:
-- `ML_SERVICE_URL=https://<your-ml-service>.onrender.com`
-- `ML_SERVICE_TOKEN=<shared-random-token>`
-- `FRONTEND_ORIGIN=https://<your-vercel-domain>`
+The frontend API client uses `VITE_API_BASE_URL` when it is set and falls back to relative `/api` paths for local dev and proxy setups.
 
-ML service:
-- `ML_SERVICE_TOKEN=<same-shared-random-token-as-backend>`
-- `ELEVENLABS_API_KEY`, `K2THINK_API_KEY`, `TOGETHER_API_KEY`
+See [DEPLOYMENT.md](DEPLOYMENT.md) for the full deployment plan.
 
-4. In Vercel, set `VITE_API_BASE_URL=https://<your-backend-service>.onrender.com`.
+## Why It Is Split This Way
 
-The frontend API client now supports `VITE_API_BASE_URL`; if unset, it falls back to relative `/api` paths for local dev/proxy setups.
+The ML service keeps provider keys isolated from the frontend. The backend and ML service authenticate with a shared token, which lets orchestration stay separate from UI concerns.
 
-See [DEPLOYMENT.md](DEPLOYMENT.md) for the deployment plan.
-
-## What Makes It Different
-
-Most AI storytelling tools ask you to type. This one starts with speech.
-
-Most pipelines treat the LLM as a formatter. DreamsComeTrue uses K2 Think v2 as a co-author that shapes the transcript into a real picture book.
-
-Most image generation demos create disconnected images. This one pushes full story context into each illustration prompt so the book feels continuous.
-
-The result is not just generated content. It is a book.
+The job flow is asynchronous because transcription and image generation take time. The backend responds quickly, and the frontend polls for updates until the full book is ready.
 
 ## License
 

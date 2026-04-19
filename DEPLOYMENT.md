@@ -6,22 +6,24 @@
 - Project root: `frontend/`
 - Build command: `npm run build`
 - Output directory: `dist`
+- API base URL: set `VITE_API_BASE_URL` to the Render backend URL in production
+- Local dev: the Vite server proxies `/api` to `http://localhost:3001`
 
 ## Backend Services
 
 Use **Render** for both Express + FastAPI.
 
-- Blueprint file: `render.yaml` (repository root)
+- Blueprint file: `render.yaml` at the repository root
 - Backend service root: `backend/`
 - ML service root: `ml-service/`
-- Both services can run on Render free tier
+- Both services are configured as Render web services
 
 ## Required Runtime Services
 
 - Express API (`backend/src/index.ts`)
 - FastAPI ML service (`ml-service/main.py`)
-- FFmpeg binary available where orchestration runs
-- Supabase credentials as secrets
+- Shared `ML_SERVICE_TOKEN` between backend and ML service
+- Provider API keys kept only on the ML service
 
 ## Required Secrets
 
@@ -37,10 +39,17 @@ Use **Render** for both Express + FastAPI.
 - `TOGETHER_API_KEY`
 - `FLUX_MODEL` (optional, defaults to `black-forest-labs/FLUX.2-pro`)
 
+### Environment Notes
+
+- `FRONTEND_ORIGIN` can be a comma-separated list of allowed origins for production and preview domains.
+- `ML_SERVICE_URL` should point to the Render ML service URL.
+- `VITE_API_BASE_URL` should point to the Render backend URL in Vercel.
+
 ## Network Rules
 
 - FastAPI should not be publicly exposed without token checks.
 - Express should call FastAPI via private URL/internal network when possible.
+- Browser clients should never talk to the ML service directly.
 
 ## Render + Vercel Wiring
 
