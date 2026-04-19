@@ -5,8 +5,9 @@ import {
   transcribeWhisper,
 } from "../services/mlServiceClient.js";
 import type { JobRecord } from "../types/job.js";
+import type { StoryFilters } from "../types/filters.js";
 
-const FILTER_LABELS: Record<string, Record<string, string>> = {
+const FILTER_LABELS: Record<keyof StoryFilters, Record<string, string>> = {
   visualStyle: {
     watercolor: "Watercolor Storybook",
     pixar: "Pixar-like 3D",
@@ -30,8 +31,9 @@ const FILTER_LABELS: Record<string, Record<string, string>> = {
   },
 };
 
-function labelFilter(key: keyof typeof FILTER_LABELS, value: string): string {
-  return FILTER_LABELS[key][value] ?? value;
+function labelFilter(key: keyof StoryFilters, value: StoryFilters[keyof StoryFilters]): string {
+  const labelsForAxis = FILTER_LABELS[key];
+  return labelsForAxis[value] ?? value;
 }
 
 function splitParagraphs(text: string): string[] {
@@ -107,10 +109,8 @@ function buildFluxDirectorPrompt(input: {
   paragraph: string;
   continuityBrief: string;
   visualStyle: string;
-  narratorVoice: string;
   readingLevel: string;
   tone: string;
-  pacing: string;
 }): string {
   return [
     "DIRECTOR PROMPT FOR FLUX.2-PRO",
@@ -125,10 +125,8 @@ function buildFluxDirectorPrompt(input: {
     "",
     "STYLE DIRECTION",
     `Visual style: ${input.visualStyle}`,
-    `Narration feel: ${input.narratorVoice}`,
     `Reading level: ${input.readingLevel}`,
     `Tone: ${input.tone}`,
-    `Pacing: ${input.pacing}`,
     "",
     "COMPOSITION",
     "Full-page children's picture-book illustration.",
@@ -214,10 +212,8 @@ export async function runPipeline(job: JobRecord, audioBuffer?: Buffer): Promise
       paragraph,
       continuityBrief,
       visualStyle: labelFilter("visualStyle", job.filters.visualStyle),
-      narratorVoice: labelFilter("narratorVoice", job.filters.narratorVoice),
       readingLevel: labelFilter("readingLevel", job.filters.readingLevel),
       tone: labelFilter("tone", job.filters.tone),
-      pacing: labelFilter("pacing", job.filters.pacing),
     });
 
     const imagePrompt = buildNoTextPrompt(baseImagePrompt);
