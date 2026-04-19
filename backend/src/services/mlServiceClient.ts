@@ -5,6 +5,7 @@ const ML_SERVICE_TOKEN = process.env.ML_SERVICE_TOKEN ?? "dev-token";
 const ML_SERVICE_TIMEOUT_MS = Number(process.env.ML_SERVICE_TIMEOUT_MS ?? 45000);
 const ML_SERVICE_MAX_ATTEMPTS = Number(process.env.ML_SERVICE_MAX_ATTEMPTS ?? 4);
 const ML_SERVICE_RETRY_BASE_MS = Number(process.env.ML_SERVICE_RETRY_BASE_MS ?? 2000);
+const ML_SERVICE_LOG_CALLS = (process.env.ML_SERVICE_LOG_CALLS ?? "false").toLowerCase() === "true";
 const RETRYABLE_STATUSES = new Set([502, 503, 504]);
 
 function sleep(ms: number): Promise<void> {
@@ -51,6 +52,9 @@ async function mlPost<TReq, TRes>(path: string, body: TReq): Promise<TRes> {
   for (let attempt = 1; attempt <= ML_SERVICE_MAX_ATTEMPTS; attempt += 1) {
     try {
       const targetUrl = buildMlUrl(path);
+      if (ML_SERVICE_LOG_CALLS && attempt === 1) {
+        console.info(`[mlServiceClient] Calling ML endpoint: ${targetUrl}`);
+      }
       const res = await fetch(targetUrl, {
         method: "POST",
         headers: {

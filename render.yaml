@@ -14,6 +14,8 @@ services:
         sync: false
       - key: ML_SERVICE_TOKEN
         sync: false
+      - key: ML_SERVICE_LOG_CALLS
+        value: "false"
       - key: FRONTEND_ORIGIN
         sync: false
 
